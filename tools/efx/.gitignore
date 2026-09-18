@@ -1,0 +1,7 @@
+# Local configuration — generate it with: tools/efx/efx config detect --write
+efx.conf
+
+# Runtime artefacts
+logs/
+state/
+__pycache__/

@@ -1,0 +1,57 @@
+# efx configuration schema
+#
+# One key per line:
+#   NAME|TYPE|DEFAULT|GROUP|DESCRIPTION
+#
+# TYPE is one of:
+#   str          free-form string
+#   int          integer
+#   bool         yes|no
+#   dir          directory that must exist
+#   file         file that must exist
+#   outdir       directory that will be created if missing
+#   enum:a,b,c   one of the listed values
+#
+# GROUP selects which GUI page shows the key.
+# Lines starting with '#' and blank lines are ignored.
+
+# ---- general -------------------------------------------------------------
+EFX_PROJECT_DIR|dir||general|Efinity FPGA project directory (contains the .xml project file)
+SOC_VARIANT|enum:hard,fcu|hard|general|Which SoC runs Linux: hard = efx_hard_soc, fcu = EfxSapphireFCU
+BOARD|str|ti375c529|general|br2-efinix board name (must exist in the dt-generator devkit list)
+ARCH|enum:32,64|32|general|RISC-V machine architecture passed to init.sh -m
+WORKSPACE|str|build_ti375_oob|general|Workspace directory name, created next to the repo
+JOBS|int||general|Parallel make jobs (empty = nproc)
+
+# ---- device tree / SoC map ----------------------------------------------
+SOCMAP_OVERLAY|str|socmap/ti375_oob_hard.h|general|Project-specific soc.h overlay, relative to tools/efx (empty = none)
+DT_FEATURES|str||general|Extra device-tree features beyond the ones auto-detected from soc.h (sdhc,ethernet,dma,fb,usb,emmc). Needs matching overrides in dtoverlay/ and RTL that actually wires the peripheral to this SoC.
+
+# ---- rootfs --------------------------------------------------------------
+ROOTFS_MODE|enum:initramfs,sdcard|initramfs|image|initramfs = rootfs embedded in the kernel; sdcard = genimage sdcard.img
+ROOTFS_PACKAGES|enum:minimal,full|minimal|image|minimal = busybox rootfs; full = also configs/extra_packages_fragment (perl, python, vim, benchmarks)
+
+# ---- FSBL ----------------------------------------------------------------
+FSBL_HOST|enum:hard,fcu|hard|fsbl|Which SoC BSP the first-stage bootloader is built for
+RISCV_BIN_DIR|dir|/media/tmk/uniwork/tools/riscv/xpack-riscv-none-elf-gcc/bin|fsbl|Bare-metal RISC-V toolchain bin directory
+RISCV_PREFIX|str|riscv-none-elf-|fsbl|Toolchain tool prefix (BSP default is riscv-none-embed-)
+EFX_FSBL_CFLAGS_EXTRA|str||fsbl|Extra CFLAGS appended to the FSBL build (escape hatch)
+FSBL_CONFIG|str|fsbl/bootloaderConfig.h|fsbl|bootloaderConfig.h to build in, relative to tools/efx (empty = boards/efinix/common/bootloaderConfig.h)
+FCU_FIRMWARE|str|sw/fcu_test/build/fcu_test.bin|fpga|FCU on-chip RAM image for efx fpga bram-update, relative to the Efinity project
+
+# ---- FPGA / Efinity ------------------------------------------------------
+EFINITY_HOME|dir|/media/tmk/uniwork/tools/efx/efinity/2026.1|fpga|Linux Efinity installation root
+FPGA_DEVICE|str|Ti375C529|fpga|Target FPGA device
+FPGA_PROJECT|str|ti375_oob|fpga|Efinity project name (without .xml)
+
+# ---- buildroot tuning ----------------------------------------------------
+EFX_DL_DIR|str||general|Buildroot download cache (empty = Buildroot default, under $HOME)
+EFX_CCACHE_DIR|str||general|Buildroot ccache directory (empty = Buildroot default, under $HOME)
+
+# ---- flash ---------------------------------------------------------------
+FLASH_OPENSBI_OFFSET|str|0x00600000|flash|SPI flash offset for fw_jump.bin
+FLASH_UBOOT_OFFSET|str|0x00680000|flash|SPI flash offset for u-boot.bin
+FLASH_BITSTREAM_OFFSET|str|0x00000000|flash|SPI flash offset for the FPGA bitstream
+FLASH_DTB_OFFSET|str|0x00740000|flash|SPI flash offset for linux.dtb
+FLASH_BOOTSCR_OFFSET|str|0x00750000|flash|SPI flash offset for the U-Boot boot script (must match CONFIG_BOOTCOMMAND)
+FLASH_KERNEL_OFFSET|str|0x00800000|flash|SPI flash offset for the kernel Image (with initramfs)

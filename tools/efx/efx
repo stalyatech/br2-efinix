@@ -1,0 +1,132 @@
+#!/bin/bash
+# efx — build driver for the Efinix Ti375C529 (ti375_oob) Linux stack.
+#
+#   efx <component> <verb> [options]
+#
+# Everything the web GUI does goes through this same entry point, so anything
+# the GUI can do can also be done — and reproduced — from a shell.
+
+set -u
+
+EFX_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+EFX_REPO_DIR=$(cd -- "$EFX_DIR/../.." && pwd)
+export EFX_DIR EFX_REPO_DIR
+
+# shellcheck source=lib/common.sh
+. "$EFX_DIR/lib/common.sh"
+# shellcheck source=lib/conf.sh
+. "$EFX_DIR/lib/conf.sh"
+
+usage()
+{
+	cat <<-EOF
+	efx — Efinix Ti375C529 Linux build driver
+
+	Usage: efx <component> <verb> [options]
+
+	Components and verbs:
+	  preflight                      Check host tools, toolchain, Efinity, disk
+	  status   [--json] [--component C]
+	                                 Report pipeline / component state
+	  config   detect [--write]      Autodetect paths and write efx.conf
+	           configure             Fresh Buildroot configuration (wraps init.sh)
+	           reconfigure           Re-run configuration only        (init.sh -r)
+	           regen-dt              Re-run configuration + device tree (init.sh -a)
+	           reset                 Restore the repo working tree     (init.sh -c)
+	           diff                  Show what the configuration changed
+	  fsbl     build | rebuild | clean | status
+	  opensbi  build | rebuild | clean | distclean | status
+	  uboot    build | rebuild | clean | distclean | savedefconfig | status
+	  kernel   build | rebuild | clean | distclean | savedefconfig | status
+	  image    build | rebuild | clean | status
+	  fpga     ipgen | build | bram-update | pgm | status
+	  flash    image | sram | backup | spi | reset | list | sdcard
+	  clean    target | workspace | repo-reset
+	  cancel                         Stop the running job
+	  gui      [--port N] [--host H] Start the web interface
+
+	Global options:
+	  --dry-run    Print the commands that would run, change nothing
+	  -h, --help   This message
+
+	Configuration lives in tools/efx/efx.conf (schema: tools/efx/efx.keys).
+	EOF
+}
+
+component=${1:-}
+[ $# -gt 0 ] && shift
+
+case "$component" in
+''|-h|--help|help)
+	usage
+	exit 0
+	;;
+esac
+
+efx_conf_load || exit $EFX_EX_CONFIG
+
+case "$component" in
+preflight)
+	efx_preflight
+	;;
+
+status)
+	exec "$EFX_DIR/scripts/efx-status.sh" "$@"
+	;;
+
+config)
+	exec "$EFX_DIR/scripts/efx-config.sh" "$@"
+	;;
+
+fsbl)
+	exec "$EFX_DIR/scripts/efx-fsbl.sh" "$@"
+	;;
+
+opensbi|uboot|kernel|image)
+	exec "$EFX_DIR/scripts/efx-buildroot.sh" "$component" "$@"
+	;;
+
+fpga)
+	exec "$EFX_DIR/scripts/efx-fpga.sh" "$@"
+	;;
+
+flash)
+	exec "$EFX_DIR/scripts/efx-flash.sh" "$@"
+	;;
+
+clean)
+	exec "$EFX_DIR/scripts/efx-clean.sh" "$@"
+	;;
+
+cancel)
+	pid=$(cat "$EFX_STATE_DIR/lock-pid" 2>/dev/null || true)
+	if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+		efx_info "no job is running"
+		exit 0
+	fi
+	efx_info "stopping job (pid $pid)"
+	kill -INT -"$pid" 2>/dev/null || kill -INT "$pid" 2>/dev/null || true
+	for _ in $(seq 1 20); do
+		kill -0 "$pid" 2>/dev/null || break
+		sleep 0.5
+	done
+	if kill -0 "$pid" 2>/dev/null; then
+		efx_warn "still alive, sending TERM"
+		kill -TERM -"$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+		sleep 2
+		kill -KILL -"$pid" 2>/dev/null || true
+	fi
+	efx_info "stopped"
+	;;
+
+gui)
+	exec python3 "$EFX_DIR/webgui/server.py" "$@"
+	;;
+
+*)
+	efx_err "unknown component: $component"
+	echo
+	usage
+	exit $EFX_EX_USAGE
+	;;
+esac
