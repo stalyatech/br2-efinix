@@ -98,11 +98,35 @@
 #define SYSTEM_USER_TIMER_0_CTRL 0xf8015000
 #define SYSTEM_USER_TIMER_0_CTRL_SIZE 0x1000
 #define SYSTEM_DDR_BMB 0x1000
-#define SYSTEM_DDR_BMB_SIZE 0xe7fff000
+#define SYSTEM_DDR_BMB_SIZE 0x40000000
 #define SYSTEM_AXI_A_BMB 0xe8000000
 #define SYSTEM_AXI_A_BMB_SIZE 0x10000000
+#define SYSTEM_I2C_2_IO_CTRL_SIZE 0x100
+#define SYSTEM_I2C_2_IO_CTRL 0xe8022000
 #define SYSTEM_I2C_1_IO_CTRL_SIZE 0x100
-#define SYSTEM_I2C_1_IO_CTRL 0xe8031000
+#define SYSTEM_I2C_1_IO_CTRL 0xe8021000
+#define SYSTEM_I2C_0_IO_CTRL_SIZE 0x100
+#define SYSTEM_I2C_0_IO_CTRL 0xe8020000
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_DATA_WIDTH_MAX 8
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_CLOCK_DIVIDER_WIDTH 20
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_PRE_SAMPLING_SIZE 1
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_SAMPLING_SIZE 5
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_POST_SAMPLING_SIZE 2
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_CTS_GEN 0
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_RTS_GEN 0
+#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_RX_SAMPLE_PER_BIT 8
+#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_BAUDRATE 115200
+#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_DATA_LENGTH 7
+#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_PARITY NONE
+#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_STOP ONE
+#define SYSTEM_UART_0_IO_PARAMETER_BUS_CAN_WRITE_CLOCK_DIVIDER_CONFIG 1
+#define SYSTEM_UART_0_IO_PARAMETER_BUS_CAN_WRITE_FRAME_CONFIG 1
+#define SYSTEM_UART_0_IO_PARAMETER_TX_FIFO_DEPTH 128
+#define SYSTEM_UART_0_IO_PARAMETER_RX_FIFO_DEPTH 128
+#define SYSTEM_UART_1_IO_CTRL_SIZE 0x40
+#define SYSTEM_UART_1_IO_CTRL 0xe8011000
+#define SYSTEM_GPIO_0_IO_CTRL_SIZE 0x100
+#define SYSTEM_GPIO_0_IO_CTRL 0xe8040000
 #define SYSTEM_UART_1_IO_PARAMETER_UART_CTRL_CONFIG_DATA_WIDTH_MAX 8
 #define SYSTEM_UART_1_IO_PARAMETER_UART_CTRL_CONFIG_CLOCK_DIVIDER_WIDTH 20
 #define SYSTEM_UART_1_IO_PARAMETER_UART_CTRL_CONFIG_PRE_SAMPLING_SIZE 1
@@ -119,12 +143,23 @@
 #define SYSTEM_UART_1_IO_PARAMETER_BUS_CAN_WRITE_FRAME_CONFIG 1
 #define SYSTEM_UART_1_IO_PARAMETER_TX_FIFO_DEPTH 128
 #define SYSTEM_UART_1_IO_PARAMETER_RX_FIFO_DEPTH 128
+#define SYSTEM_SPI_2_IO_CTRL_SIZE 0x1000
+#define SYSTEM_SPI_2_IO_CTRL 0xe8032000
+#define SYSTEM_SPI_2_IO_PARAMETER_CMD_FIFO_DEPTH 256
+#define SYSTEM_SPI_2_IO_PARAMETER_RSP_FIFO_DEPTH 256
+#define SYSTEM_UART_2_IO_CTRL_SIZE 0x40
+#define SYSTEM_UART_2_IO_CTRL 0xe8012000
+#define SYSTEM_WATCHDOG_LOGIC_PARAMETER_PRESCALER_WIDTH 24
+#define SYSTEM_WATCHDOG_LOGIC_PARAMETER_TIMEOUT_WIDTH 16
+#define SYSTEM_WATCHDOG_LOGIC_PARAMETER_COUNTERS 2
+#define SYSTEM_WATCHDOG_LOGIC_CTRL 0xe8050000
+#define SYSTEM_WATCHDOG_LOGIC_CTRL_SIZE 0x100
+#define IO_APB_SLAVE_0_INPUT_SIZE 65536
+#define IO_APB_SLAVE_0_INPUT 0xe8100000
 #define SYSTEM_SPI_0_IO_CTRL_SIZE 0x1000
-#define SYSTEM_SPI_0_IO_CTRL 0xe8020000
-#define SYSTEM_UART_1_IO_CTRL_SIZE 0x40
-#define SYSTEM_UART_1_IO_CTRL 0xe8011000
-#define SYSTEM_I2C_2_IO_CTRL_SIZE 0x100
-#define SYSTEM_I2C_2_IO_CTRL 0xe8032000
+#define SYSTEM_SPI_0_IO_CTRL 0xe8030000
+#define SYSTEM_SPI_0_IO_PARAMETER_CMD_FIFO_DEPTH 256
+#define SYSTEM_SPI_0_IO_PARAMETER_RSP_FIFO_DEPTH 256
 #define SYSTEM_UART_0_IO_CTRL_SIZE 0x40
 #define SYSTEM_UART_0_IO_CTRL 0xe8010000
 #define SYSTEM_UART_2_IO_PARAMETER_UART_CTRL_CONFIG_DATA_WIDTH_MAX 8
@@ -143,39 +178,11 @@
 #define SYSTEM_UART_2_IO_PARAMETER_BUS_CAN_WRITE_FRAME_CONFIG 1
 #define SYSTEM_UART_2_IO_PARAMETER_TX_FIFO_DEPTH 128
 #define SYSTEM_UART_2_IO_PARAMETER_RX_FIFO_DEPTH 128
-#define IO_APB_SLAVE_0_INPUT_SIZE 4096
-#define IO_APB_SLAVE_0_INPUT 0xe8100000
-#define SYSTEM_UART_2_IO_CTRL_SIZE 0x40
-#define SYSTEM_UART_2_IO_CTRL 0xe8012000
-#define SYSTEM_I2C_0_IO_CTRL_SIZE 0x100
-#define SYSTEM_I2C_0_IO_CTRL 0xe8030000
-#define SYSTEM_CLINT_HZ 250000000
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_DATA_WIDTH_MAX 8
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_CLOCK_DIVIDER_WIDTH 20
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_PRE_SAMPLING_SIZE 1
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_SAMPLING_SIZE 5
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_POST_SAMPLING_SIZE 2
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_CTS_GEN 0
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_RTS_GEN 0
-#define SYSTEM_UART_0_IO_PARAMETER_UART_CTRL_CONFIG_RX_SAMPLE_PER_BIT 8
-#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_BAUDRATE 115200
-#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_DATA_LENGTH 7
-#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_PARITY NONE
-#define SYSTEM_UART_0_IO_PARAMETER_INIT_CONFIG_STOP ONE
-#define SYSTEM_UART_0_IO_PARAMETER_BUS_CAN_WRITE_CLOCK_DIVIDER_CONFIG 1
-#define SYSTEM_UART_0_IO_PARAMETER_BUS_CAN_WRITE_FRAME_CONFIG 1
-#define SYSTEM_UART_0_IO_PARAMETER_TX_FIFO_DEPTH 128
-#define SYSTEM_UART_0_IO_PARAMETER_RX_FIFO_DEPTH 128
-#define SYSTEM_SPI_2_IO_CTRL_SIZE 0x1000
-#define SYSTEM_SPI_2_IO_CTRL 0xe8022000
-#define IO_APB_SLAVE_2_INPUT_SIZE 4096
-#define IO_APB_SLAVE_2_INPUT 0xe8300000
 #define SYSTEM_SPI_1_IO_CTRL_SIZE 0x1000
-#define SYSTEM_SPI_1_IO_CTRL 0xe8021000
-#define SYSTEM_GPIO_0_IO_CTRL_SIZE 0x100
-#define SYSTEM_GPIO_0_IO_CTRL 0xe8040000
-#define IO_APB_SLAVE_1_INPUT_SIZE 4096
-#define IO_APB_SLAVE_1_INPUT 0xe8200000
+#define SYSTEM_SPI_1_IO_CTRL 0xe8031000
+#define SYSTEM_SPI_1_IO_PARAMETER_CMD_FIFO_DEPTH 256
+#define SYSTEM_SPI_1_IO_PARAMETER_RSP_FIFO_DEPTH 256
+#define SYSTEM_CLINT_HZ 200000000
 #define SYSTEM_PLIC_SYSTEM_UART_0_IO_INTERRUPT SYSTEM_PLIC_USER_INTERRUPT_A_INTERRUPT
 #define SYSTEM_PLIC_SYSTEM_UART_1_IO_INTERRUPT SYSTEM_PLIC_USER_INTERRUPT_B_INTERRUPT
 #define SYSTEM_PLIC_SYSTEM_UART_2_IO_INTERRUPT SYSTEM_PLIC_USER_INTERRUPT_C_INTERRUPT
@@ -187,5 +194,94 @@
 #define SYSTEM_PLIC_SYSTEM_I2C_2_IO_INTERRUPT SYSTEM_PLIC_USER_INTERRUPT_I_INTERRUPT
 #define SYSTEM_PLIC_SYSTEM_GPIO_0_IO_INTERRUPTS_0 SYSTEM_PLIC_USER_INTERRUPT_J_INTERRUPT
 #define SYSTEM_PLIC_SYSTEM_GPIO_0_IO_INTERRUPTS_1 SYSTEM_PLIC_USER_INTERRUPT_K_INTERRUPT
+#define SYSTEM_PLIC_SYSTEM_WATCHDOG_SOFT_PANIC_INTERRUPT SYSTEM_PLIC_USER_INTERRUPT_L_INTERRUPT
+#define SYSTEM_HARD_RISCV_QC32 1
+#define FAMILY_TYPE TITANIUM
+
+
+/* ---- injected by efx from socmap/ti375_oob_hard.h ---- */
+/*
+ * ti375_oob — peripheral map overlay for the hardened RISC-V SoC (efx_hard_soc)
+ *
+ * This file is appended to a *copy* of the project's soc.h by `efx config
+ * project is never modified.
+ *
+ * It describes the fabric peripherals that the hard SoC reaches in the
+ * ti375_oob RTL from branch stalya-fmu_v3.0-npu onwards, where the hard SoC is
+ * the boot master and the soft FCU runs NuttX under its control. Keep it in
+ * step with ti375_oob_top.v: the addresses below are fixed by
+ *
+ *   u_hs_axi_split       takes the 32 MB window 0xEA00_0000 out of AXI-A
+ *   u_AXIS_1to2_switch   decodes that window's low 25 bits:
+ *                        port 0 gTSE  at 0x000_0000, 16 MB  (24 address bits)
+ *                        port 1 gSDHC at 0x100_0000, 64 KB  (16 address bits)
+ *                        (ip/gAXIS_1to2_switch/axi_interconnect.vh)
+ *   the APB split        hard SoC APB window 0xE810_0000 by PADDR[15:14]
+ *
+ * WHY THIS FILE EXISTS
+ * --------------------
+ * init.sh injects a hard-coded AXI slave map when given -u (unified hardware)
+ * or -e (example design). For a hardened SoC that map puts slave 0 at
+ * 0xE800_0000, on top of this SoC's own peripherals at 0xE801_0000 (UART0)
+ * through 0xE805_0000 (watchdog). So efx never passes -u/-e and supplies this
+ * map instead.
+ *
+ * HARD SoC MAP
+ * ------------
+ *   DDR                 0x0000_1000  size 0xE7FF_F000   shared with the FCU,
+ *                                                       same addresses
+ *   AXI_A window        0xE800_0000  size 0x1000_0000
+ *     soft logic block  0xE800_0000 .. 0xE8FF_FFFF      decodes bits [23:0]
+ *       UART0/1/2       0xE801_0000 / _1000 / _2000     UART0 is the console
+ *       I2C0/1/2        0xE802_0000 / _1000 / _2000     pins on the FCU
+ *       SPI0/1/2        0xE803_0000 / _1000 / _2000     SPI0/1 = boot flashes
+ *       GPIO0           0xE804_0000                     pins on the FCU
+ *       Watchdog        0xE805_0000
+ *       APB window      0xE810_0000  size 0x1_0000
+ *         gDMA          0xE810_0000  size 0x4000        PADDR[15:14] = 00
+ *         StalyaNPU     0xE810_4000  size 0x4000        PADDR[15:14] = 01
+ *         amp_ctrl      0xE810_8000  size 0x40          PADDR[15]    = 1
+ *     gTSE              0xEA00_0000  size 0x100_0000
+ *     gSDHC             0xEB00_0000  size 0x1_0000
+ *   CLINT               0xF8B0_0000
+ *   PLIC                0xF8C0_0000
+ *   On-chip RAM A       0xF900_0000  size 0x4000
+ *
+ * HARD SoC PLIC LINES (userInterruptA..L = PLIC 1..12)
+ *   1 UART0   4 SPI0   5 SPI1   6 gSDHC   7 gDMA ch0   8 gDMA ch1
+ *   9 NPU0   10 NPU1  11 amp_ctrl doorbell from the FCU   12 watchdog
+ *   2, 3 tied low. These lines are already declared in soc.h; nothing to
+ *   define for them here.
+ */
+
+/* gTSE: triple-speed Ethernet MAC control and status registers. */
+#define SYSTEM_AXI_SLAVE_0_IO_CTRL      0xea000000
+#define SYSTEM_AXI_SLAVE_0_IO_CTRL_SIZE 0x1000000
+
+/* gSDHC: SD host controller registers (SDHCI compatible). */
+#define SYSTEM_AXI_SLAVE_1_IO_CTRL      0xeb000000
+#define SYSTEM_AXI_SLAVE_1_IO_CTRL_SIZE 0x10000
+
+/* AMP control block, host port. See rtl/amp_ctrl.v in the ti375_oob repo. */
+#define SYSTEM_AMP_CTRL                 0xe8108000
+#define SYSTEM_AMP_CTRL_SIZE            0x40
+
+/*
+ * No SYSTEM_AXI_<letter>_BMB defines here, and no redefinition of
+ * SYSTEM_AXI_A_BMB.
+ *
+ * soc.h already declares the real CPU-side window (0xE800_0000, 256 MB), and the
+ * device tree generator turns that into the `axi0` simple-bus. Both slaves above
+ * fall inside it, so they are emitted as children of `axi0` automatically, at
+ * offsets 0x2000000 and 0x3000000.
+ *
+ * Adding SYSTEM_AXI_B_BMB / SYSTEM_AXI_C_BMB on top of that makes the generator
+ * emit a *second* bus describing the same addresses, and the device tree fails
+ * to compile with a duplicate 'axi_slave1' label. Efinix's own reference maps
+ * in init.sh define both, but they also delete SYSTEM_AXI_A_BMB first and
+ * re-point it at the slave window — an arrangement that does not apply here,
+ * where the hardened SoC's own peripherals live inside that same window.
+ */
+
 #define SYSTEM_CORES_COUNT 4
 #endif

@@ -3,14 +3,14 @@
 /include/ "sapphire.dtsi"
 
 / {
-	#address-cells = <2>;
-	#size-cells = <2>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "efinix,sapphire";
 
 	
 	memory {
 		device_type = "memory";
-		reg = <0x8 0x000000 0x0 0x40000000>;
+		reg = <0x400000 0x3fc00000>;
 	};
 	
 		
@@ -21,55 +21,79 @@
 		
         aliases {
         	serial0 = &uart0;
+        	spi0 = &spi0;
         };
 	
 	
 
         wdt-reboot {
         	compatible = "wdt-reboot";
-        	clock-frequency = <50000000>;
+        	clock-frequency = <200000000>;
         	wdt = <&watchdog0>;
         	status = "okay";
         };
 
 
 };
-
 &plic {
-        device_type = "interrupt-controller";
-        compatible = "sifive,plic-1.0.0";
-        #interrupt-cells = <2>;
-        riscv,ndev = <32>;
-        status = "okay";
+	device_type = "interrupt-controller";
+	compatible = "sifive,plic-1.0.0";
+	#interrupt-cells = <2>;
+	riscv,ndev = <32>;
+	status = "okay";
 };
 
 &clint0 {
-        compatible = "riscv,clint0";
-        status = "okay";
+	compatible = "riscv,clint0";
+	status = "okay";
+};
+
+
+&uart1 {
+	device_type = "serial";
+	compatible = "riscv_sbi,uart";
+	status = "okay";
+};
+
+&uart2 {
+	device_type = "serial";
+	compatible = "riscv_sbi,uart";
+	status = "okay";
 };
 
 &uart0 {
-        device_type = "serial";
-        compatible = "riscv_sbi,uart";
-        status = "okay";
+	device_type = "serial";
+	compatible = "riscv_sbi,uart";
+	status = "okay";
 };
 
-&spi1 {
-        compatible = "vexriscv,spi";
-        status = "okay";
-	mmc0: mmc@0 {
-		reg = <0>;
-		compatible = "mmc-spi-slot";
-		spi-max-frequency = <10000000>;
-	};
+&spi2 {
+	compatible = "vexriscv,spi";
+	status = "okay";
 };
 
 &spi0 {
-        compatible = "vexriscv,spi";
-        status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+	compatible = "vexriscv,spi";
+	status = "okay";
+	
+        flash0: flash@0 {
+                status = "okay";
+        	reg = <0>;
+        	compatible = "jedec,spi-nor";
+        	spi-max-frequency = <6000000>;
+        	disable-auto-4byte-addressing;
+        };
+};
+
+&spi1 {
+	compatible = "vexriscv,spi";
+	status = "okay";
 };
 
 &watchdog0 {
-        compatible = "efx,efx-wdt";
-        status = "okay";
+	compatible = "efx,efx-wdt";
+	status = "okay";
 };
+

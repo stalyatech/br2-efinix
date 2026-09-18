@@ -4,24 +4,16 @@
 /include/ "sapphire.dtsi"
 
 / {
-	#address-cells = <2>;
-	#size-cells = <2>;
-	//model = "efinix,sapphire";
-	model = "myboard,riscv";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	model = "efinix,sapphire";
 
 	
 	memory {
 		device_type = "memory";
-		reg = <0x8 0x0 0x0 0x40000000>;
+		reg = <0x400000 0x3fc00000>;
 	};
-
-	gpio-irq-example {
-                status = "okay";
-                reg = <0x0>;
-                compatible = "efinix,gpio-irq";
-                interrupt-parent = <&gpio0>;
-                interrupts = <0 IRQ_TYPE_EDGE_RISING>;
-        };
+	
 		
         chosen {
         	stdout-path = "serial0:115200n8";
@@ -32,73 +24,152 @@
         	serial0 = &uart0;
         };
 		
+        gpio-irq-example {
+                status = "disabled";
+        	reg = <0x0>;
+        	compatible = "efinix,gpio-irq";
+        	interrupt-parent = <&gpio0>;
+        	interrupts = <0 IRQ_TYPE_EDGE_RISING>;
+        };
+	
 	reserved-memory {
-		#address-cells = <2>;
-		#size-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 		ranges;
 		
-                opensbi: opensbi@801000000 {
+                opensbi: opensbi@2000000 {
                         status = "okay";
-                	reg = <0x8 0x01000000 0x0 0x80000>;
+                	reg = <0x2000000 0x80000>;
                 };
-
-
-		dma32_resv: dma32@40000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x0 0x40000000 0x0 0x04000000>; /* 64 MiB */
-			reusable;
-			linux,dma-default;
-		};
-
 	};
 };
-
 &plic {
 	riscv,ndev = <32>;
 	status = "okay";
 };
 
+&clint0 {
+	status = "disabled";
+};
+
+
+&uart1 {
+	current-speed = <115200>;
+	status = "disabled";
+};
+
+&uart2 {
+	current-speed = <115200>;
+	status = "disabled";
+};
+
 &uart0 {
-        current-speed = <115200>;
-        status = "okay";
+	current-speed = <115200>;
+	status = "okay";
+};
+
+&spi2 {
+	cmd_fifo_depth = <256>;
+	rsp_fifo_depth = <256>;
+	num-cs = <1>;
+	status = "disabled";
 };
 
 &spi0 {
-	#address-cells = <2>;
+	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "okay";
 	cmd_fifo_depth = <256>;
 	rsp_fifo_depth = <256>;
 	num-cs = <1>;
+	status = "okay";
+	
+        flash: flash@0 {
+        	#address-cells = <1>;
+        	#size-cells = <1>;
+                status = "okay";
+        	reg = <0>;
+        	compatible = "jedec,spi-nor";
+        	spi-max-frequency = <10000000>;
+        		
+                partition@0 {
+                        status = "okay";
+                	reg = <0x0 0x600000>;
+                	label = "fpga_bitstream";
+                };
+        		
+                partition@600000 {
+                        status = "okay";
+                	reg = <0x600000 0x80000>;
+                	label = "opensbi";
+                };
+        		
+                partition@680000 {
+                        status = "okay";
+                	reg = <0x680000 0xc0000>;
+                	label = "uboot";
+                };
+        		
+                partition@740000 {
+                        status = "okay";
+                	reg = <0x740000 0x10000>;
+                	label = "dtb";
+                };
+        		
+                partition@750000 {
+                        status = "okay";
+                	reg = <0x750000 0x10000>;
+                	label = "bootscr";
+                };
+        		
+                partition@760000 {
+                        status = "okay";
+                	reg = <0x760000 0xa0000>;
+                	label = "reserved";
+                };
+        		
+                partition@800000 {
+                        status = "okay";
+                	reg = <0x800000 0x800000>;
+                	label = "kernel";
+                };
+        };
 };
 
 &spi1 {
-	#address-cells = <2>;
-	#size-cells = <0>;
-	status = "okay";
 	cmd_fifo_depth = <256>;
 	rsp_fifo_depth = <256>;
 	num-cs = <1>;
+	status = "okay";
+};
 
-	mmc-slot {
-		reg = <0x0 0x0>;
-		compatible = "mmc-spi-slot";
-		voltage-ranges = <3300 3300>;
-		spi-max-frequency = <10000000>;
-	};
+&i2c2 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "disabled";
 };
 
 &i2c0 {
-        status = "okay";
+	status = "disabled";
 };
 
 &gpio0 {
-        #gpio-cells = <2>;
-        ngpio = <4>;
-        gpio-controller;
-        status = "okay";
+	#gpio-cells = <2>;
+	ngpio = <4>;
+	gpio-controller;
+	status = "disabled";
+};
+
+&mmc0 {
+	bus-width = <4>;
+	no-sdio;
+	no-mmc;
+	max-frequency = <100000000>;
+	status = "okay";
 };
 
 &watchdog0 {
 	status = "okay";
 };
+
