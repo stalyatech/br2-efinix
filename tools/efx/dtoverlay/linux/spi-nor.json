@@ -1,0 +1,73 @@
+{
+    "_comment": [
+        "ti375_oob — Linux view of the boot flash, and the soft-logic-block",
+        "peripherals this design leaves unconnected.",
+        "",
+        "Merged over config/linux/generic/spi-nor.json, which init.sh always",
+        "includes (every soc.h has an SPI), so this is also the one board file that",
+        "is always read; the overrides below live here for that reason.",
+        "",
+        "Partitions: the layout 'efx flash image' writes and the U-Boot mtdparts in",
+        "overlays/uboot_ti375_oob.cfg describe. The stock table put a 3 MB 'user'",
+        "partition at 0x780000, on top of the device tree, boot script and kernel.",
+        "Nothing is exposed past 16 MiB: the FPGA reads its bitstream with 3-byte",
+        "addresses and the kernel slot ends there.",
+        "",
+        "Overrides: the hard SoC's slot logic block pairs PLIC lines B, C and F..K",
+        "with UART1/2, SPI2, I2C0..2 and GPIO0, and soc.h says so. In ti375_oob",
+        "those peripherals have no pins (ti375_oob_top.v leaves their ports open)",
+        "and the lines carry gSDHC (6), gDMA (7, 8), StalyaNPU (9, 10) and the",
+        "amp_ctrl doorbell (11) instead. Left enabled, gpio0 would own the doorbell",
+        "line and spi2 would share the SD host's."
+    ],
+    "overrides": {
+        "ti375_oob_uart1": { "device_instance": "uart1", "status": "disabled", "interrupts": [] },
+        "ti375_oob_uart2": { "device_instance": "uart2", "status": "disabled", "interrupts": [] },
+        "ti375_oob_spi2":  { "device_instance": "spi2",  "status": "disabled", "interrupts": [] },
+        "ti375_oob_i2c0":  { "device_instance": "i2c0",  "status": "disabled", "interrupts": [] },
+        "ti375_oob_i2c1":  { "device_instance": "i2c1",  "status": "disabled", "interrupts": [] },
+        "ti375_oob_i2c2":  { "device_instance": "i2c2",  "status": "disabled", "interrupts": [] },
+        "ti375_oob_gpio0": { "device_instance": "gpio0", "status": "disabled", "interrupts": [] }
+    },
+    "child": {
+        "spi_nor": {
+            "child": {
+                "partition0": {
+                    "address_cells": 1, "size_cells": 1, "header": "partition@0",
+                    "addr": "0x0", "size": "0x600000",
+                    "private_data": ["label = \"fpga_bitstream\";"]
+                },
+                "partition1": {
+                    "address_cells": 1, "size_cells": 1, "header": "partition@600000",
+                    "addr": "0x600000", "size": "0x80000",
+                    "private_data": ["label = \"opensbi\";"]
+                },
+                "partition2": {
+                    "address_cells": 1, "size_cells": 1, "header": "partition@680000",
+                    "addr": "0x680000", "size": "0xc0000",
+                    "private_data": ["label = \"uboot\";"]
+                },
+                "partition3": {
+                    "address_cells": 1, "size_cells": 1, "header": "partition@740000",
+                    "addr": "0x740000", "size": "0x10000",
+                    "private_data": ["label = \"dtb\";"]
+                },
+                "partition4": {
+                    "address_cells": 1, "size_cells": 1, "header": "partition@750000",
+                    "addr": "0x750000", "size": "0x10000",
+                    "private_data": ["label = \"bootscr\";"]
+                },
+                "partition5": {
+                    "address_cells": 1, "size_cells": 1, "header": "partition@760000",
+                    "addr": "0x760000", "size": "0xa0000",
+                    "private_data": ["label = \"reserved\";"]
+                },
+                "partition6": {
+                    "address_cells": 1, "size_cells": 1, "header": "partition@800000",
+                    "addr": "0x800000", "size": "0x800000",
+                    "private_data": ["label = \"kernel\";"]
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "_comment": [
+        "ti375_oob — switch off the gpio-irq-example node from",
+        "config/linux/generic/gpio_irq.json. It hangs off gpio0, which has no pins",
+        "in this design and is disabled in spi-nor.json."
+    ],
+    "child": {
+        "gpio_leds": {
+            "status": "disabled"
+        }
+    }
+}

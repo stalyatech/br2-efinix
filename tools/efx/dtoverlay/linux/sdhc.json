@@ -1,0 +1,23 @@
+{
+    "_comment": [
+        "ti375_oob — binds the SD host controller to the AXI slave declared in",
+        "tools/efx/socmap/ti375_oob_hard.h (SYSTEM_AXI_SLAVE_1_IO_CTRL 0xeb000000).",
+        "",
+        "config/linux/generic/sdhc.json describes what an mmc node looks like but",
+        "not which device it is; Efinix supply that binding from their -u/-e",
+        "override directories, which do not apply to this design. efx installs this",
+        "file into the generator's config/linux/<arch>/<board>/ directory instead,",
+        "where init.sh picks it up with no -u/-e flag.",
+        "",
+        "Needs the ti375_oob RTL from branch stalya-fmu_v3.0-npu onwards, where the",
+        "hard SoC reaches gSDHC at 0xEB00_0000 and sd_int drives userInterruptF,",
+        "PLIC line 6. Earlier bitstreams give gSDHC to the soft FCU SoC. Enable",
+        "with DT_FEATURES=sdhc."
+    ],
+    "overrides": {
+        "sdhc": {
+            "device_instance": "axi_slave1",
+            "interrupts": ["6"]
+        }
+    }
+}
