@@ -280,7 +280,11 @@ build|rebuild)
 	backup_originals
 	install_linux_config
 
-	[ "$VERB" = rebuild ] && do_make clean
+	# The BSP makefile tracks no header dependencies, so an edit to
+	# bootloaderConfig.h, the one file this build exists to change, would
+	# leave main.o and the old FSBL in place. The build takes about a second;
+	# always start clean.
+	do_make clean
 	do_make all || efx_die 1 "FSBL build failed"
 
 	verify_output || efx_die 1 "FSBL failed verification — not installing"
