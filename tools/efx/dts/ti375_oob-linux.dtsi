@@ -11,12 +11,14 @@
  *
  *   0x1E00_0000  32 MiB   FCU images (remoteproc), AMP_FCU_MEM_* in
  *                         ti375_oob sw/amp/amp_ctrl.h
- *   0x2000_0000  256 MiB  npu0: blob 0x2000_0000, scratch 0x2800_0000
- *   0x3000_0000  256 MiB  npu1: blob 0x3000_0000, scratch 0x3800_0000
+ *   0x3800_0000  64 MiB   npu0
+ *   0x3C00_0000  64 MiB   npu1
  *
- * The NPU blobs hold absolute addresses, so these bases are the ones in the
- * stalyanpu system description (rtl/snpu_system.json). The last MiB of each
- * NPU region is the driver's descriptor area.
+ * NPU blobs are compiled for fixed addresses (rtl/snpu_system.json: npu0
+ * 0x2000_0000 / 0x2800_0000, npu1 0x3000_0000 / 0x3800_0000), which Linux now
+ * owns; the snpu driver relocates them into these regions at run time. A
+ * region has to hold the blob and its scratch; YOLOv8s needs 23 MiB on npu0
+ * and 34 MiB on npu1. The last MiB of each is the driver's descriptor area.
  */
 
 / {
@@ -35,13 +37,13 @@
 			no-map;
 		};
 
-		npu0_mem: npu0@20000000 {
-			reg = <0x20000000 0x10000000>;
+		npu0_mem: npu0@38000000 {
+			reg = <0x38000000 0x04000000>;
 			no-map;
 		};
 
-		npu1_mem: npu1@30000000 {
-			reg = <0x30000000 0x10000000>;
+		npu1_mem: npu1@3c000000 {
+			reg = <0x3c000000 0x04000000>;
 			no-map;
 		};
 	};
@@ -73,4 +75,13 @@
 		memory-region = <&fcu_mem>;
 		firmware-name = "fcu_fw_test.elf";
 	};
+};
+
+/*
+ * The SD card-detect interrupt never reaches Linux on this design: a card put
+ * in after boot stays unseen until the host is rebound. Poll for it instead
+ * (mmc core checks once a second).
+ */
+&mmc0 {
+	broken-cd;
 };
