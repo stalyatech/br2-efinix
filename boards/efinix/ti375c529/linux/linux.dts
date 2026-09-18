@@ -173,3 +173,5 @@
 	status = "okay";
 };
 
+
+/include/ "ti375_oob-linux.dtsi"
