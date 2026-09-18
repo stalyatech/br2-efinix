@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>efx — Ti375C529 Linux build</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <span class="brand-mark">efx</span>
+      <span class="brand-sub">Ti375C529 · ti375_oob</span>
+    </div>
+
+    <nav id="nav">
+      <button class="nav-item" data-page="dashboard"><span class="dot"></span>Dashboard</button>
+      <div class="nav-group">Pipeline</div>
+      <button class="nav-item" data-page="config"><span class="dot" data-state-for="config"></span>Configuration</button>
+      <button class="nav-item" data-page="fsbl"><span class="dot" data-state-for="fsbl"></span>FSBL</button>
+      <button class="nav-item" data-page="opensbi"><span class="dot" data-state-for="opensbi"></span>OpenSBI</button>
+      <button class="nav-item" data-page="uboot"><span class="dot" data-state-for="uboot"></span>U-Boot</button>
+      <button class="nav-item" data-page="kernel"><span class="dot" data-state-for="kernel"></span>Kernel</button>
+      <button class="nav-item" data-page="image"><span class="dot" data-state-for="image"></span>Rootfs &amp; Image</button>
+      <div class="nav-group">Hardware</div>
+      <button class="nav-item" data-page="fpga"><span class="dot" data-state-for="fpga"></span>FPGA / Bitstream</button>
+      <button class="nav-item" data-page="flash"><span class="dot"></span>Flash</button>
+      <div class="nav-group">Tools</div>
+      <button class="nav-item" data-page="logs"><span class="dot"></span>Logs</button>
+      <button class="nav-item" data-page="settings"><span class="dot"></span>Settings</button>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div id="busy-indicator" class="busy hidden"><span class="spinner"></span><span id="busy-text"></span></div>
+      <button id="theme-toggle" class="ghost" title="Toggle light / dark">◐ Theme</button>
+    </div>
+  </aside>
+
+  <main id="main">
+    <header id="topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <div id="topbar-meta"></div>
+    </header>
+    <div id="page"></div>
+  </main>
+</div>
+
+<div id="toast-host"></div>
+
+<dialog id="confirm-dialog">
+  <form method="dialog">
+    <h2 id="confirm-title">Are you sure?</h2>
+    <p id="confirm-body"></p>
+    <p class="confirm-cmd"><code id="confirm-cmd"></code></p>
+    <menu>
+      <button value="cancel" class="ghost">Cancel</button>
+      <button value="ok" class="danger">Yes, do it</button>
+    </menu>
+  </form>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
