@@ -11,6 +11,8 @@
 #include <sbi/sbi_hart.h>
 #include <sbi/sbi_platform.h>
 #include <sbi/sbi_console.h>
+#include <sbi/sbi_ecall_interface.h>
+#include <sbi/sbi_system.h>
 #include <sbi_utils/irqchip/plic.h>
 #include <sbi_utils/serial/spinal-uart.h>
 #include <sbi_utils/ipi/aclint_mswi.h>
@@ -66,8 +68,51 @@ void vex_enable_cbo(void)
     sbi_printf("CBO extensions enabled in MENVCFG: 0x%lx\n", menvcfg);
 }
 
+#ifdef SYSTEM_AMP_CTRL
+/*
+ * ti375_oob: reboot through the amp_ctrl block of the design (rtl/amp_ctrl.v).
+ * Writing the key to SYS_RESET holds the board's reset button input low for a
+ * moment: the hard SoC, the FCU and the DDR start over exactly as after a
+ * press of the button, and the FSBL boots the board again. There is no way to
+ * remove power, so shutdown is left unsupported.
+ */
+#define AMP_REG_ID		0x00
+#define AMP_ID_VALUE		0x414D5001
+#define AMP_REG_SYS_RESET	0x1C
+#define AMP_SYS_RESET_KEY	0x52535421	/* "RST!" */
+
+static int amp_reset_check(u32 type, u32 reason)
+{
+	switch (type) {
+	case SBI_SRST_RESET_TYPE_COLD_REBOOT:
+	case SBI_SRST_RESET_TYPE_WARM_REBOOT:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static void amp_reset(u32 type, u32 reason)
+{
+	writel(AMP_SYS_RESET_KEY, (void *)(SYSTEM_AMP_CTRL + AMP_REG_SYS_RESET));
+	while (1)
+		wfi();
+}
+
+static struct sbi_system_reset_device amp_reset_dev = {
+	.name			= "ti375_oob-amp_ctrl",
+	.system_reset_check	= amp_reset_check,
+	.system_reset		= amp_reset,
+};
+#endif
+
 static int vex_final_init(bool cold_boot)
 {
+#ifdef SYSTEM_AMP_CTRL
+	/* Only a bitstream that has amp_ctrl answers with its ID. */
+	if (cold_boot && readl((void *)(SYSTEM_AMP_CTRL + AMP_REG_ID)) == AMP_ID_VALUE)
+		sbi_system_reset_add_device(&amp_reset_dev);
+#endif
 	return 0;
 }
 
