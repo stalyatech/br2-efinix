@@ -1,0 +1,17 @@
+config BR2_PACKAGE_STALYA_NPU
+	bool "StalyaNPU driver and tools"
+	depends on BR2_LINUX_KERNEL
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	help
+	  snpu.ko, libsnpu and snpu-bench for the StalyaNPU accelerator,
+	  built from the sw/ directory of the stalyanpu IP. tools/efx
+	  enables this and fills in the path (PROJECT_SW=npu).
+
+if BR2_PACKAGE_STALYA_NPU
+
+config BR2_PACKAGE_STALYA_NPU_SRCDIR
+	string "stalyanpu sw/ directory"
+	help
+	  Absolute path of ip/stalyanpu/sw in the Efinity project.
+
+endif

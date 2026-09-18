@@ -1,0 +1,18 @@
+#!/bin/sh
+# Load the FCU remoteproc driver. If the FSBL already released the FCU, the
+# driver attaches to it and leaves it running; see
+# /sys/class/remoteproc/remoteproc0/{state,firmware}.
+case "$1" in
+start)
+	printf "Loading fcu_rproc: "
+	modprobe fcu_rproc && echo "OK" || echo "FAIL"
+	;;
+stop)
+	# Unloading leaves the FCU running.
+	modprobe -r fcu_rproc
+	;;
+*)
+	echo "Usage: $0 {start|stop}"
+	exit 1
+	;;
+esac

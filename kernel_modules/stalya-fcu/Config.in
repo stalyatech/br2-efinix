@@ -1,0 +1,23 @@
+config BR2_PACKAGE_STALYA_FCU
+	bool "ti375_oob FCU remoteproc driver and test firmware"
+	depends on BR2_LINUX_KERNEL
+	help
+	  fcu_rproc.ko, which lets Linux load, start and stop the soft FCU
+	  SoC through amp_ctrl, and fcu_fw_test.elf in /lib/firmware.
+	  Built from the sw/ directory of the ti375_oob Efinity project;
+	  the firmware needs a bare-metal RISC-V toolchain. tools/efx
+	  enables this and fills in the paths (PROJECT_SW=fcu).
+
+if BR2_PACKAGE_STALYA_FCU
+
+config BR2_PACKAGE_STALYA_FCU_PROJECT
+	string "Efinity project directory"
+
+config BR2_PACKAGE_STALYA_FCU_BAREMETAL_BIN
+	string "bare-metal RISC-V toolchain bin directory"
+
+config BR2_PACKAGE_STALYA_FCU_BAREMETAL_PREFIX
+	string "bare-metal RISC-V toolchain prefix"
+	default "riscv-none-elf-"
+
+endif

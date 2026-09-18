@@ -366,6 +366,50 @@ postprocess_defconfig()
 		efx_info "rootfs mode       = sdcard (genimage sdcard.img)"
 	fi
 
+	# Devices the generator cannot describe (reserved memory, NPU and FCU
+	# nodes): the dtsi that the generated linux.dts includes has to be copied
+	# into the kernel tree with it.
+	python3 - "$GEN_DEFCONFIG" "$EFX_DIR/dts/ti375_oob-linux.dtsi" <<-'PY'
+		import re, sys
+		path, dtsi = sys.argv[1], sys.argv[2]
+		t = open(path).read()
+		key = 'BR2_LINUX_KERNEL_CUSTOM_DTS_PATH'
+		m = re.search(r'^%s="(.*)"$' % key, t, re.M)
+		items = m.group(1).split() if m else []
+		if dtsi not in items:
+		    items.append(dtsi)
+		line = '%s="%s"' % (key, ' '.join(items))
+		t = t[:m.start()] + line + t[m.end():] if m else t + '\n' + line + '\n'
+		open(path, 'w').write(t)
+	PY
+	efx_info "kernel dts        += dts/ti375_oob-linux.dtsi"
+
+	# Project software, built from the Efinity project's own sources.
+	sed -i '/^BR2_PACKAGE_STALYA_/d' "$GEN_DEFCONFIG"
+	local sw
+	for sw in $PROJECT_SW; do
+		case "$sw" in
+		npu)
+			[ -d "$EFX_PROJECT_DIR/ip/stalyanpu/sw/linux" ] \
+				|| efx_die $EFX_EX_CONFIG "PROJECT_SW=npu: no ip/stalyanpu/sw/linux in $EFX_PROJECT_DIR"
+			printf '%s\n' 'BR2_PACKAGE_STALYA_NPU=y' \
+				"BR2_PACKAGE_STALYA_NPU_SRCDIR=\"$EFX_PROJECT_DIR/ip/stalyanpu/sw\"" >> "$GEN_DEFCONFIG"
+			;;
+		fcu)
+			[ -d "$EFX_PROJECT_DIR/sw/linux/fcu_rproc" ] \
+				|| efx_die $EFX_EX_CONFIG "PROJECT_SW=fcu: no sw/linux/fcu_rproc in $EFX_PROJECT_DIR"
+			printf '%s\n' 'BR2_PACKAGE_STALYA_FCU=y' \
+				"BR2_PACKAGE_STALYA_FCU_PROJECT=\"$EFX_PROJECT_DIR\"" \
+				"BR2_PACKAGE_STALYA_FCU_BAREMETAL_BIN=\"$RISCV_BIN_DIR\"" \
+				"BR2_PACKAGE_STALYA_FCU_BAREMETAL_PREFIX=\"$RISCV_PREFIX\"" >> "$GEN_DEFCONFIG"
+			;;
+		*)
+			efx_die $EFX_EX_CONFIG "PROJECT_SW: unknown item '$sw' (npu, fcu)"
+			;;
+		esac
+	done
+	efx_info "project software  = ${PROJECT_SW:-none}"
+
 	# Rootfs size. init.sh always appends configs/extra_packages_fragment
 	# (perl, python, vim, benchmarks: ~100 MB). A rootfs that has to fit in
 	# the kernel image and come out of SPI flash wants busybox only.
@@ -419,6 +463,21 @@ postprocess_defconfig()
 
 # ------------------------------------------------------------------- verbs ---
 
+# The generator cannot express the reserved memory and the NPU and FCU nodes;
+# they live in dts/ti375_oob-linux.dtsi. It is included at the very end of the
+# generated linux.dts, after sapphire.dtsi and the root node: dtc wants every
+# /dts-v1/ before the first node, and there the dtsi merges last.
+append_board_dtsi()
+{
+	local dts="$EFX_REPO_DIR/boards/efinix/$BOARD/linux/linux.dts"
+	local inc='/include/ "ti375_oob-linux.dtsi"'
+
+	[ -f "$dts" ] || return 0
+	grep -qxF "$inc" "$dts" && return 0
+	printf '\n%s\n' "$inc" >> "$dts"
+	efx_info "linux.dts         += $inc"
+}
+
 do_configure()
 {
 	efx_conf_validate || efx_die $EFX_EX_CONFIG "fix efx.conf first (see messages above)"
@@ -451,6 +510,7 @@ do_configure()
 	run_init '' || return $?
 	[ $DRY_RUN -eq 1 ] && return 0
 
+	append_board_dtsi
 	postprocess_defconfig
 	efx_info "configured: $EFX_BUILD_DIR/.config"
 }
@@ -483,6 +543,7 @@ do_reconfigure()
 	run_init "$flag" || return $?
 	[ $DRY_RUN -eq 1 ] && return 0
 
+	append_board_dtsi
 	postprocess_defconfig
 	efx_info "reconfigured: $EFX_BUILD_DIR/.config"
 }

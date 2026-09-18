@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * ti375_oob: devices of the Linux hard SoC that the generator cannot describe.
+ *
+ * efx config includes it at the end of the generated
+ * boards/efinix/ti375c529/linux/linux.dts and copies it next to it for the
+ * kernel build (BR2_LINUX_KERNEL_CUSTOM_DTS_PATH).
+ *
+ * DDR, all no-map: Linux never touches these ranges, and nothing but the
+ * owning driver maps them.
+ *
+ *   0x1E00_0000  32 MiB   FCU images (remoteproc), AMP_FCU_MEM_* in
+ *                         ti375_oob sw/amp/amp_ctrl.h
+ *   0x2000_0000  256 MiB  npu0: blob 0x2000_0000, scratch 0x2800_0000
+ *   0x3000_0000  256 MiB  npu1: blob 0x3000_0000, scratch 0x3800_0000
+ *
+ * The NPU blobs hold absolute addresses, so these bases are the ones in the
+ * stalyanpu system description (rtl/snpu_system.json). The last MiB of each
+ * NPU region is the driver's descriptor area.
+ */
+
+/ {
+	aliases {
+		npu0 = &npu0;
+		npu1 = &npu1;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		fcu_mem: fcu@1e000000 {
+			reg = <0x1e000000 0x02000000>;
+			no-map;
+		};
+
+		npu0_mem: npu0@20000000 {
+			reg = <0x20000000 0x10000000>;
+			no-map;
+		};
+
+		npu1_mem: npu1@30000000 {
+			reg = <0x30000000 0x10000000>;
+			no-map;
+		};
+	};
+
+	/* StalyaNPU 32x16, CSR block on the hard SoC APB window, PLIC 9 */
+	npu0: npu@e8104000 {
+		compatible = "stalya,snpu";
+		reg = <0xe8104000 0x100>;
+		interrupt-parent = <&plic>;
+		interrupts = <9>;
+		memory-region = <&npu0_mem>;
+	};
+
+	/* StalyaNPU 16x8, PLIC 10 */
+	npu1: npu@e8104100 {
+		compatible = "stalya,snpu";
+		reg = <0xe8104100 0x100>;
+		interrupt-parent = <&plic>;
+		interrupts = <10>;
+		memory-region = <&npu1_mem>;
+	};
+
+	/* Soft FCU SoC through amp_ctrl; doorbell from the FCU on PLIC 11 */
+	fcu: fcu@e8108000 {
+		compatible = "stalya,fcu-rproc";
+		reg = <0xe8108000 0x40>;
+		interrupt-parent = <&plic>;
+		interrupts = <11>;
+		memory-region = <&fcu_mem>;
+		firmware-name = "fcu_fw_test.elf";
+	};
+};

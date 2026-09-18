@@ -1,0 +1,15 @@
+#!/bin/sh
+# Load the StalyaNPU driver: /dev/snpu0, /dev/snpu1.
+case "$1" in
+start)
+	printf "Loading snpu: "
+	modprobe snpu && echo "OK" || echo "FAIL"
+	;;
+stop)
+	modprobe -r snpu
+	;;
+*)
+	echo "Usage: $0 {start|stop}"
+	exit 1
+	;;
+esac
