@@ -5,14 +5,15 @@
 // bitstream through OCR_FILE_PATH in ti375_oob.peri.xml. It
 //
 //   1. prints a banner on UART0, the Linux console
-//   2. starts the soft FCU SoC through amp_ctrl, unless it is already running
+//   2. reports the soft FCU SoC's state; it does not start it
 //   3. copies OpenSBI and U-Boot from the boot flash (SPI0) into DDR
 //   4. releases the other harts and jumps to OpenSBI
 //
-// Step 2 comes first on purpose: the FCU carries the flight stack, so it
-// starts within milliseconds of configuration, before anything that could
-// fail on the Linux side. After a reboot of the hard SoC alone, amp_ctrl still
-// shows the FCU running and it is left untouched (remoteproc attaches later).
+// The FCU comes out of reset held (amp_ctrl FCU_HOLD) and stays held until
+// Linux loads and starts its firmware through remoteproc: the flight stack
+// must not run, nor drive its outputs, before the system has come up. If the
+// FCU is already running when this runs, it is left alone and remoteproc
+// attaches to it.
 //
 // Derived from boards/efinix/common/bootloaderConfig.h (RV32 path). The flash
 // offsets must agree with the U-Boot mtdparts and the flash programming map.
@@ -61,10 +62,8 @@ static void print_hex(const char *label, u32 value)
     bsp_printf_s("\r\n");
 }
 
-// Start the FCU. Its test image (sw/fcu_test) lives in the FCU's own on-chip
-// RAM, so there is nothing to load: releasing the hold is enough. A NuttX
-// build would be copied into its DDR carve-out and BOOT_ADDR set here first.
-static void amp_start_fcu(void)
+// The FCU is Linux's to start (remoteproc); only say what state it is in.
+static void amp_report_fcu(void)
 {
     u32 id = read_u32(AMP_HOST_BASE + AMP_REG_ID);
 
@@ -73,13 +72,10 @@ static void amp_start_fcu(void)
         return;
     }
 
-    if (!(read_u32(AMP_HOST_BASE + AMP_REG_CTRL) & AMP_CTRL_FCU_HOLD)) {
+    if (read_u32(AMP_HOST_BASE + AMP_REG_CTRL) & AMP_CTRL_FCU_HOLD)
+        bsp_printf_s("AMP: FCU held until Linux starts it\r\n");
+    else
         bsp_printf_s("AMP: FCU already running, left alone\r\n");
-        return;
-    }
-
-    write_u32(0, AMP_HOST_BASE + AMP_REG_CTRL);
-    print_hex("AMP: FCU released, STATUS 0x", read_u32(AMP_HOST_BASE + AMP_REG_STATUS));
 }
 
 void bspMain(void)
@@ -87,7 +83,7 @@ void bspMain(void)
     configure_uart();
     bsp_printf_s("\r\n\r\nti375_oob hard SoC FSBL, built " __DATE__ " " __TIME__ "\r\n");
 
-    amp_start_fcu();
+    amp_report_fcu();
 
     spiFlash_init(SPI, SPI_CS);
     spiFlash_wake(SPI, SPI_CS);

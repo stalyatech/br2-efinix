@@ -1,7 +1,7 @@
 #!/bin/sh
-# Load the FCU remoteproc driver. If the FSBL already released the FCU, the
-# driver attaches to it and leaves it running; see
-# /sys/class/remoteproc/remoteproc0/{state,firmware}.
+# Load the FCU remoteproc driver. The FCU is held from reset; with
+# stalya,auto-boot in the device tree the driver loads the firmware and starts
+# it. See /sys/class/remoteproc/remoteproc0/{state,firmware}.
 case "$1" in
 start)
 	printf "Loading fcu_rproc: "

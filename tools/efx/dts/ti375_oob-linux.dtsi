@@ -9,8 +9,10 @@
  * DDR, all no-map: Linux never touches these ranges, and nothing but the
  * owning driver maps them.
  *
- *   0x1E00_0000  32 MiB   FCU images (remoteproc), AMP_FCU_MEM_* in
- *                         ti375_oob sw/amp/amp_ctrl.h
+ *   0x1E00_0000  32 MiB   FCU firmware (PX4 on NuttX), loaded by remoteproc;
+ *                         AMP_FCU_MEM_* in ti375_oob sw/amp/amp_ctrl.h. The
+ *                         last 2 MiB are meant for the Linux <-> FCU rpmsg
+ *                         buffers once that is added.
  *   0x3800_0000  64 MiB   npu0
  *   0x3C00_0000  64 MiB   npu1
  *
@@ -66,7 +68,11 @@
 		memory-region = <&npu1_mem>;
 	};
 
-	/* Soft FCU SoC through amp_ctrl; doorbell from the FCU on PLIC 11 */
+	/*
+	 * Soft FCU SoC through amp_ctrl; doorbell from the FCU on PLIC 11. The
+	 * FCU is held from reset until this driver starts it: with auto-boot it
+	 * loads /lib/firmware/<firmware-name> and starts it when it probes.
+	 */
 	fcu: fcu@e8108000 {
 		compatible = "stalya,fcu-rproc";
 		reg = <0xe8108000 0x40>;
@@ -74,6 +80,7 @@
 		interrupts = <11>;
 		memory-region = <&fcu_mem>;
 		firmware-name = "fcu_fw_test.elf";
+		stalya,auto-boot;
 	};
 };
 
