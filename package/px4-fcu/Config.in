@@ -15,7 +15,7 @@ config BR2_PACKAGE_PX4_FCU_ELF
 	  Path of the ELF to install, for example
 	  <px4-core>/build/stalya_nexus-v2_default/stalya_nexus-v2_default.elf
 
-config BR2_PACKAGE_PX4_FCU_NAME
+config BR2_PACKAGE_PX4_FCU_FWNAME
 	string "name under /lib/firmware"
 	default "px4_fcu.elf"
 

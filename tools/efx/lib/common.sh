@@ -379,3 +379,14 @@ efx_preflight()
 	fi
 	return $_efx_pf_rc
 }
+
+# efx_netmask <prefix> — dotted netmask for a prefix length (24 -> 255.255.255.0)
+efx_netmask() {
+	local prefix=${1:-24} i octet mask=""
+	for i in 0 1 2 3; do
+		octet=$(( prefix > 8 ? 8 : (prefix < 0 ? 0 : prefix) ))
+		prefix=$(( prefix - octet ))
+		mask="${mask}${mask:+.}$(( 256 - 2 ** (8 - octet) ))"
+	done
+	printf '%s\n' "$mask"
+}

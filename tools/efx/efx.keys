@@ -30,7 +30,9 @@ DT_FEATURES|str||general|Extra device-tree features beyond the ones auto-detecte
 # ---- rootfs --------------------------------------------------------------
 ROOTFS_MODE|enum:initramfs,sdcard|initramfs|image|initramfs = rootfs embedded in the kernel; sdcard = genimage sdcard.img
 ROOTFS_PACKAGES|enum:minimal,full|minimal|image|minimal = busybox rootfs; full = also configs/extra_packages_fragment (perl, python, vim, benchmarks)
-PROJECT_SW|str|npu fcu|image|Project software in the image: npu = StalyaNPU driver, libsnpu, snpu-bench (ip/stalyanpu/sw); fcu = FCU remoteproc driver and test firmware (sw/). Empty = none
+PROJECT_SW|str|npu fcu|image|Project software in the image: npu = StalyaNPU driver, libsnpu, snpu-bench (ip/stalyanpu/sw); fcu = FCU remoteproc driver and test firmware (sw/); px4 = the PX4 firmware named by PX4_ELF. Empty = none
+PX4_ELF|file||image|PX4 firmware for the FCU, built out of tree (px4-core, make stalya_nexus-v2_default). Needed by PROJECT_SW=px4
+NET_ADDRESS|str||image|Address eth0 comes up with, e.g. 192.168.50.2/24. Empty = the interface is left down
 
 # ---- FSBL ----------------------------------------------------------------
 FSBL_HOST|enum:hard,fcu|hard|fsbl|Which SoC BSP the first-stage bootloader is built for
