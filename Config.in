@@ -1,4 +1,5 @@
 source "$BR2_EXTERNAL_EFINIX_PATH/package/opensbi-ext/Config.in"
+source "$BR2_EXTERNAL_EFINIX_PATH/package/px4-fcu/Config.in"
 source "$BR2_EXTERNAL_EFINIX_PATH/package/canny/Config.in"
 source "$BR2_EXTERNAL_EFINIX_PATH/package/apb3app/Config.in"
 source "$BR2_EXTERNAL_EFINIX_PATH/package/gpio_app/Config.in"

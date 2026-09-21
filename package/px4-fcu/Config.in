@@ -1,0 +1,22 @@
+config BR2_PACKAGE_PX4_FCU
+	bool "PX4 firmware for the soft FCU"
+	help
+	  Installs the PX4 (NuttX) firmware of the nexus-v2 board into
+	  /lib/firmware, where the fcu_rproc driver picks it up. The
+	  firmware is built out of tree, in the px4-core repository
+	  (make stalya_nexus-v2_default); this package only takes the
+	  resulting ELF.
+
+if BR2_PACKAGE_PX4_FCU
+
+config BR2_PACKAGE_PX4_FCU_ELF
+	string "PX4 firmware ELF"
+	help
+	  Path of the ELF to install, for example
+	  <px4-core>/build/stalya_nexus-v2_default/stalya_nexus-v2_default.elf
+
+config BR2_PACKAGE_PX4_FCU_NAME
+	string "name under /lib/firmware"
+	default "px4_fcu.elf"
+
+endif
