@@ -73,6 +73,66 @@
 	 * FCU is held from reset until this driver starts it: with auto-boot it
 	 * loads /lib/firmware/<firmware-name> and starts it when it probes.
 	 */
+	/*
+	 * gDMA (SpinalHDL dmasg) moves the Ethernet frames. It sits in the
+	 * lowest 16 KiB of the hard SoC's APB window; the rest of that window
+	 * belongs to the NPU (+0x4000) and amp_ctrl (+0x8000), so only its own
+	 * 16 KiB are claimed here. Channel 0 is receive, channel 1 transmit
+	 * (rtl/ti375_oob_top.v, dma_interrupts -> userInterruptG/H = PLIC 7/8).
+	 */
+	eth_dma: dma@e8100000 {
+		compatible = "spinal,lib-dmasg";
+		reg = <0xe8100000 0x4000>;
+		interrupt-parent = <&plic>;
+		interrupts = <7>, <8>;		/* [0] rx, [1] tx */
+		#dma-cells = <1>;
+		axistream-connected = <&tsemac0>;
+		axistream-control-connected = <&tsemac0>;
+	};
+
+	/*
+	 * gTSE, the Ethernet MAC, on AXI slave 0 of the hard SoC (16 MiB
+	 * window, of which the driver touches the MAC at 0x000, the MDIO bus
+	 * at 0x100 and the control block at 0x200).
+	 *
+	 * The RGMII delays are made in the fabric (TX clock shifted 90
+	 * degrees, RX resynchronised per bit), so the PHY must not add its
+	 * own: the mode is plain "rgmii". The PHY reset is a control register
+	 * of the MAC, not a GPIO, and the driver drives it.
+	 */
+	tsemac0: ethernet@ea000000 {
+		compatible = "efinix,tsemac-0.01.a";
+		device_type = "network";
+		reg = <0xea000000 0x1000>;
+		axistream-connected = <&eth_dma>;
+		axistream-control-connected = <&eth_dma>;
+		phy-mode = "rgmii";
+		phy-handle = <&ethphy0>;
+		local-mac-address = [ 02 53 54 41 4c 59 ];
+		efx,rxcsum = <0x0>;
+		efx,txcsum = <0x0>;
+		efx,rxmem = <0x1000>;
+
+		mdio {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/*
+			 * RTL8211F at MDIO address 0. The RX path of this
+			 * bitstream is wired to the gigabit receive clock
+			 * only (ETH_1000MBPS in the top level), so the link
+			 * has to come up at 1000FD.
+			 */
+			ethphy0: ethernet-phy@0 {
+				compatible = "ethernet-phy-id001c.c916";
+				reg = <0>;
+				max-speed = <1000>;
+				reset-assert-us = <500000>;
+				reset-deassert-us = <500000>;
+			};
+		};
+	};
+
 	fcu: fcu@e8108000 {
 		compatible = "stalya,fcu-rproc";
 		reg = <0xe8108000 0x40>;
