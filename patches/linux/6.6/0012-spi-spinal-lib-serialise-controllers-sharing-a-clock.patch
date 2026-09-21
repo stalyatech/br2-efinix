@@ -1,0 +1,62 @@
+From: efx <volvox@stalya.com>
+Subject: [PATCH] spi: spinal-lib: serialise controllers that share a clock
+
+A board can wire two of these controllers to one SCLK pin, the clocks
+ORed in the fabric (ti375_oob does this for its two SPI flashes). Only
+one controller may drive the bus at a time, and the unit has to be the
+message, because a chip select stays asserted across its transfers.
+
+---
+--- a/drivers/spi/spi-spinal-lib.c	2026-09-21 13:23:05.212485570 +0300
++++ b/drivers/spi/spi-spinal-lib.c	2026-09-21 13:23:05.217637829 +0300
+@@ -4,6 +4,7 @@
+ #include <linux/errno.h>
+ #include <linux/module.h>
+ #include <linux/platform_device.h>
++#include <linux/mutex.h>
+ #include <linux/spi/spi.h>
+ #include <linux/io.h>
+ #include <linux/of.h>
+@@ -175,6 +176,33 @@
+ 	return burst;
+ }
+ 
++/*
++ * Boards can wire two of these controllers to one SCLK pin, with the clocks
++ * ORed together in the fabric; the ti375_oob design does exactly that for its
++ * two SPI flashes. Then only one controller may drive the bus at a time, and
++ * the grain has to be the message: a chip select stays asserted across the
++ * transfers of one message, and another controller clocking in between would
++ * be seen by the selected device as its own clock.
++ *
++ * The SPI core serialises per controller, so the lock below is what keeps the
++ * controllers apart. On a board with one controller it is never contended.
++ */
++static DEFINE_MUTEX(spi_spinal_lib_shared_clk);
++
++static int spi_spinal_lib_prepare_message(struct spi_master *master,
++					  struct spi_message *msg)
++{
++	mutex_lock(&spi_spinal_lib_shared_clk);
++	return 0;
++}
++
++static int spi_spinal_lib_unprepare_message(struct spi_master *master,
++					    struct spi_message *msg)
++{
++	mutex_unlock(&spi_spinal_lib_shared_clk);
++	return 0;
++}
++
+ static int spi_spinal_lib_txrx(struct spi_master *master, struct spi_device *spi, struct spi_transfer *t)
+ {
+ 	struct spi_spinal_lib *hw = spi_master_get_devdata(master);
+@@ -288,6 +316,8 @@
+ 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 8);
+ 	master->dev.of_node = pdev->dev.of_node;
+ 	master->transfer_one = spi_spinal_lib_txrx;
++	master->prepare_message = spi_spinal_lib_prepare_message;
++	master->unprepare_message = spi_spinal_lib_unprepare_message;
+ 	master->set_cs = spi_spinal_lib_set_cs;
+ 	master->setup = spi_spinal_lib_setup;
+ 	clk = devm_clk_get(&pdev->dev, NULL);
