@@ -456,6 +456,14 @@ postprocess_defconfig()
 		efx_info "network           = eth0 left down"
 	fi
 
+	# The DDS side of the link: Fast DDS and the agent that carries PX4's
+	# topics between the FCU's rpmsg tty and DDS on this side.
+	sed -i '/^BR2_PACKAGE_MICRO_XRCE_DDS_AGENT=/d' "$GEN_DEFCONFIG"
+	if [ "$DDS_AGENT" = y ]; then
+		echo 'BR2_PACKAGE_MICRO_XRCE_DDS_AGENT=y' >> "$GEN_DEFCONFIG"
+		efx_info "dds agent         = MicroXRCEAgent on $DDS_AGENT_DEV"
+	fi
+
 	# A read-only root is what Buildroot's skeleton already expects: /var's
 	# cache, log, run and spool are symlinks into tmpfs, and only /var/lib is
 	# in the image. What is missing is somewhere for state that has to last a
@@ -519,6 +527,55 @@ postprocess_defconfig()
 			esac
 		SH
 		chmod +x "$overlay_dir/usr/sbin/efx-format-store"
+
+		if [ "$DDS_AGENT" = y ]; then
+			cat > "$overlay_dir/etc/init.d/S45agent" <<-SH
+				#!/bin/sh
+				# The Micro XRCE-DDS agent: PX4 runs the client on the FCU and
+				# talks to it over the rpmsg tty, and the agent puts those
+				# topics on DDS for anything else on this side to subscribe to.
+				#
+				# The tty only appears once the FCU has announced its rpmsg
+				# channel, a second or so after remoteproc starts it, so wait
+				# for it in the background instead of holding up the boot. The
+				# first byte has to come from this side: the kernel does not
+				# announce the channel back, so until we send something the FCU
+				# has no address to answer to and cannot transmit at all. The
+				# byte itself is dropped by the client, which is looking for the
+				# start of a frame.
+				DEV=$DDS_AGENT_DEV
+				PIDFILE=/var/run/microxrceagent.pid
+				WAIT=30
+
+				case "\$1" in
+				start)
+					(
+						i=0
+						while [ ! -c "\$DEV" ] && [ \$i -lt \$WAIT ]; do
+							sleep 1
+							i=\$((i + 1))
+						done
+						if [ ! -c "\$DEV" ]; then
+							echo "no \$DEV after \${WAIT}s, agent not started"
+							exit 0
+						fi
+						dd if=/dev/zero of="\$DEV" bs=1 count=1 2>/dev/null
+						start-stop-daemon -S -b -m -p "\$PIDFILE" \\
+							-x /usr/bin/MicroXRCEAgent -- serial --dev "\$DEV"
+					) &
+					echo "MicroXRCEAgent starts when \$DEV appears"
+					;;
+				stop)
+					start-stop-daemon -K -q -p "\$PIDFILE"
+					;;
+				*)
+					echo "Usage: \$0 {start|stop}"
+					exit 1
+					;;
+				esac
+			SH
+			chmod +x "$overlay_dir/etc/init.d/S45agent"
+		fi
 		efx_info "read only root    = /data and /mnt/fcufw from the flash (format by hand)"
 	fi
 
