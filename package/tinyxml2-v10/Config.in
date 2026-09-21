@@ -1,0 +1,13 @@
+config BR2_PACKAGE_TINYXML2_V10
+	bool "tinyxml2 (10.0.0, for Fast DDS)"
+	depends on BR2_INSTALL_LIBSTDCPP
+	help
+	  TinyXML2 10.0.0. Fast DDS 2.6 does not build against the 11.x API
+	  Buildroot ships, so this is the version its packages link against.
+	  It installs the same files as the stock tinyxml2 package, so only
+	  one of the two may be enabled.
+
+	  https://github.com/leethomason/tinyxml2
+
+comment "tinyxml2 (for Fast DDS) needs a toolchain w/ C++"
+	depends on !BR2_INSTALL_LIBSTDCPP

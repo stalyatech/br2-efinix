@@ -1,0 +1,26 @@
+comment "micro-xrce-dds-agent needs a toolchain w/ C++, threads"
+	depends on !BR2_INSTALL_LIBSTDCPP || !BR2_TOOLCHAIN_HAS_THREADS
+
+config BR2_PACKAGE_MICRO_XRCE_DDS_AGENT
+	bool "micro-xrce-dds-agent"
+	depends on BR2_INSTALL_LIBSTDCPP
+	depends on BR2_TOOLCHAIN_HAS_THREADS
+	select BR2_PACKAGE_FASTCDR
+	select BR2_PACKAGE_FASTDDS
+	help
+	  eProsima Micro XRCE-DDS Agent acts as a server between
+	  DDS-XRCE Clients (e.g. PX4) and the DDS network,
+	  supporting serial, UDP and TCP transports.
+
+	  https://github.com/eProsima/Micro-XRCE-DDS-Agent
+
+if BR2_PACKAGE_MICRO_XRCE_DDS_AGENT
+
+config BR2_PACKAGE_MICRO_XRCE_DDS_AGENT_P2P
+	bool "enable P2P discovery profile"
+	select BR2_PACKAGE_MICRO_XRCE_DDS_CLIENT
+	help
+	  Enable peer-to-peer discovery using the CED middleware
+	  and Micro-XRCE-DDS-Client.
+
+endif # BR2_PACKAGE_MICRO_XRCE_DDS_AGENT

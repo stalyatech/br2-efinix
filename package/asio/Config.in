@@ -1,0 +1,11 @@
+comment "asio needs a toolchain w/ C++"
+	depends on !BR2_INSTALL_LIBSTDCPP
+
+config BR2_PACKAGE_ASIO
+	bool "asio"
+	depends on BR2_INSTALL_LIBSTDCPP
+	help
+	  Asio is a cross-platform C++ library for network and
+	  low-level I/O programming.
+
+	  https://github.com/chriskohlhoff/asio/

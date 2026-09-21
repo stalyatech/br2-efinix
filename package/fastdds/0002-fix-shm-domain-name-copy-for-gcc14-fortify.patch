@@ -1,0 +1,36 @@
+From 4f1299f3eb4d1a84c2459b0f4bca89ceeeeeeeee Mon Sep 17 00:00:00 2001
+From: Build Fix Bot <noreply@example.com>
+Date: Tue, 3 Mar 2026 10:40:00 +0300
+Subject: [PATCH] fix: avoid fortified strncpy false-positive on GCC14
+
+GCC 14 with fortified libc can raise -Warray-bounds on strncpy usage in
+SharedMemGlobal::init_port(). Copy bounded length explicitly and terminate
+the destination string.
+---
+ src/cpp/rtps/transport/shared_mem/SharedMemGlobal.hpp | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cpp/rtps/transport/shared_mem/SharedMemGlobal.hpp b/src/cpp/rtps/transport/shared_mem/SharedMemGlobal.hpp
+index dd11d2f..82d7d4f 100644
+--- a/src/cpp/rtps/transport/shared_mem/SharedMemGlobal.hpp
++++ b/src/cpp/rtps/transport/shared_mem/SharedMemGlobal.hpp
+@@ -1283,11 +1283,14 @@
+         port_node->port_wait_timeout_ms = healthy_check_timeout_ms / 3;
+         port_node->max_buffer_descriptors = max_buffer_descriptors;
+         std::fill_n(port_node->listeners_status, PortNode::LISTENERS_STATUS_SIZE, PortNode::ListenerStatus());
++        const size_t domain_name_len = std::min(
++                domain_name_.size(),
++                static_cast<size_t>(MAX_DOMAIN_NAME_LENGTH));
+ #ifdef _MSC_VER
+-        strncpy_s(port_node->domain_name, sizeof(port_node->domain_name),
+-                domain_name_.c_str(), sizeof(port_node->domain_name) - 1);
++        memcpy_s(port_node->domain_name, sizeof(port_node->domain_name),
++                domain_name_.c_str(), domain_name_len);
+ #else
+-        strncpy(port_node->domain_name, domain_name_.c_str(), sizeof(port_node->domain_name) - 1);
++        memcpy(port_node->domain_name, domain_name_.c_str(), domain_name_len);
+ #endif // ifdef _MSC_VER
+         port_node->domain_name[sizeof(port_node->domain_name) - 1] = 0;
+ 
+-- 
+2.43.0

@@ -1,0 +1,11 @@
+comment "foonathan-memory needs a toolchain w/ C++"
+	depends on !BR2_INSTALL_LIBSTDCPP
+
+config BR2_PACKAGE_FOONATHAN_MEMORY
+	bool "foonathan-memory"
+	depends on BR2_INSTALL_LIBSTDCPP
+	help
+	  foonathan::memory is an STL compatible C++ memory allocator
+	  library.
+
+	  https://github.com/foonathan/memory
