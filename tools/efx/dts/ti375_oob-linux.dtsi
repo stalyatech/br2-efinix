@@ -139,7 +139,7 @@
 		interrupt-parent = <&plic>;
 		interrupts = <11>;
 		memory-region = <&fcu_mem>;
-		firmware-name = "fcu_fw_test.elf";
+		firmware-name = "px4_fcu.elf";
 		stalya,auto-boot;
 	};
 };
@@ -151,4 +151,46 @@
  */
 &mmc0 {
 	broken-cd;
+};
+
+/*
+ * The board carries two IS25WP512M flashes on the hard SoC's SPI buses. SPI0
+ * is the one the FPGA configures from and the one the boot image is written
+ * to over JTAG, all inside the first 16 MiB that 3 byte addressing reaches.
+ * SPI1 is plain storage (ti375_oob_top.v: the two controllers share the SCLK
+ * pin, which is why both belong to the hard SoC and only one of them may be
+ * busy at a time).
+ *
+ * The FCU firmware lives here rather than in the kernel's initramfs: it is
+ * the file that changes most often, and writing it costs a file copy instead
+ * of a flash image and a reset.
+ */
+&spi1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	storage: flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		status = "okay";
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				reg = <0x0 0x800000>;	/* 8 MiB */
+				label = "fcu_firmware";
+			};
+
+			partition@800000 {
+				reg = <0x800000 0x3800000>;	/* 56 MiB */
+				label = "data";
+			};
+		};
+	};
 };

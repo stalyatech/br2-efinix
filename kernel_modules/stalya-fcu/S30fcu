@@ -1,15 +1,61 @@
 #!/bin/sh
-# Load the FCU remoteproc driver. The FCU is held from reset; with
-# stalya,auto-boot in the device tree the driver loads the firmware and starts
-# it. See /sys/class/remoteproc/remoteproc0/{state,firmware}.
+# Mount the FCU firmware store and load the remoteproc driver.
+#
+# The firmware lives on the second SPI flash (partition "fcu_firmware"), not
+# in this image: it is the file that changes most often, and the kernel's
+# firmware loader is pointed at the mount so a new build is a file copy.
+# Without a usable store the driver still loads; the FCU then stays held and
+# can be started by hand once the firmware is in place.
+
+FW_LABEL=fcu_firmware
+FW_MOUNT=/mnt/fcufw
+
+mtd_by_label() {
+	for d in /sys/class/mtd/mtd[0-9]*; do
+		[ -f "$d/name" ] || continue
+		[ "$(cat "$d/name")" = "$1" ] || continue
+		basename "$d"
+		return 0
+	done
+	return 1
+}
+
+mount_store() {
+	local mtd num
+
+	mtd=$(mtd_by_label "$FW_LABEL") || {
+		echo "no $FW_LABEL partition"
+		return 1
+	}
+	num=${mtd#mtd}
+
+	mkdir -p "$FW_MOUNT"
+	mount -t jffs2 "/dev/mtdblock$num" "$FW_MOUNT" 2>/dev/null && return 0
+
+	# First use, or the filesystem did not survive: start it over.
+	echo "formatting $mtd"
+	flash_erase -j "/dev/$mtd" 0 0 >/dev/null 2>&1 || return 1
+	mount -t jffs2 "/dev/mtdblock$num" "$FW_MOUNT"
+}
+
 case "$1" in
 start)
+	printf "Mounting the FCU firmware store: "
+
+	if mount_store; then
+		echo "$FW_MOUNT"
+		echo "$FW_MOUNT" > /sys/module/firmware_class/parameters/path
+	else
+		echo "FAIL (the FCU will stay held)"
+	fi
+
 	printf "Loading fcu_rproc: "
 	modprobe fcu_rproc && echo "OK" || echo "FAIL"
 	;;
 stop)
 	# Unloading leaves the FCU running.
 	modprobe -r fcu_rproc
+	umount "$FW_MOUNT" 2>/dev/null
 	;;
 *)
 	echo "Usage: $0 {start|stop}"
