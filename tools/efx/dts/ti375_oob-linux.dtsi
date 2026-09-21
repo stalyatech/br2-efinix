@@ -154,17 +154,33 @@
 };
 
 /*
- * The board carries two IS25WP512M flashes on the hard SoC's SPI buses. SPI0
- * is the one the FPGA configures from and the one the boot image is written
- * to over JTAG, all inside the first 16 MiB that 3 byte addressing reaches.
- * SPI1 is plain storage (ti375_oob_top.v: the two controllers share the SCLK
- * pin, which is why both belong to the hard SoC and only one of them may be
- * busy at a time).
+ * The board carries two IS25WP512M flashes (64 MiB each) on the hard SoC's
+ * SPI buses, sharing one SCLK pin (ti375_oob_top.v). Only one controller may
+ * drive that pin at a time, which the SPI driver enforces with a lock across
+ * controllers (patches/linux/6.6/0012-spi-spinal-lib-...).
  *
- * The FCU firmware lives here rather than in the kernel's initramfs: it is
- * the file that changes most often, and writing it costs a file copy instead
- * of a flash image and a reset.
+ * SPI0 is the flash the FPGA configures from and the one the JTAG bridge
+ * writes: both work in 3 byte addressing, so the boot image stays under
+ * 16 MiB. The rest of that chip holds what Linux writes but the bootloader
+ * never reads: the FCU firmware and the board's own data.
+ *
+ * SPI1 is not wired to the configuration engine at all and carries the root
+ * filesystem, all 64 MiB of it.
  */
+
+&flash {
+	/* The boot image ends at 16 MiB; the rest of the chip is ours. */
+	partition@1000000 {
+		reg = <0x1000000 0x800000>;	/* 8 MiB */
+		label = "fcu_firmware";
+	};
+
+	partition@1800000 {
+		reg = <0x1800000 0x2800000>;	/* 40 MiB */
+		label = "data";
+	};
+};
+
 &spi1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -182,14 +198,10 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
+			/* the whole chip: the squashfs the kernel boots on */
 			partition@0 {
-				reg = <0x0 0x800000>;	/* 8 MiB */
-				label = "fcu_firmware";
-			};
-
-			partition@800000 {
-				reg = <0x800000 0x3800000>;	/* 56 MiB */
-				label = "data";
+				reg = <0x0 0x4000000>;	/* 64 MiB */
+				label = "rootfs";
 			};
 		};
 	};

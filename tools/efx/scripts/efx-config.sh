@@ -181,6 +181,12 @@ generate_derived_fragments()
 			# line instead of waiting forever for a disk that will never appear.
 			echo 'CONFIG_CMDLINE="console=ttySL0 earlycon"'
 			echo 'CONFIG_CMDLINE_FORCE=y'
+		elif [ "$ROOTFS_MODE" = spinor ]; then
+			# The root filesystem is a squashfs on the second SPI flash. Its
+			# mtdblock number follows the order the partitions are declared in
+			# (ROOTFS_MTDBLOCK); the kernel has no way to ask for one by name.
+			echo "CONFIG_CMDLINE=\"console=ttySL0 earlycon root=/dev/mtdblock${ROOTFS_MTDBLOCK} rootfstype=squashfs ro rootwait\""
+			echo 'CONFIG_CMDLINE_FORCE=y'
 		fi
 	} > "$DERIVED_LINUX"
 
@@ -357,14 +363,25 @@ postprocess_defconfig()
 
 	# Rootfs mode. With no SD host reachable from the hard SoC yet, the rootfs has
 	# to travel inside the kernel image — there is nothing to load it from.
-	if [ "$ROOTFS_MODE" = initramfs ]; then
-		sed -i '/^BR2_TARGET_ROOTFS_INITRAMFS=/d' "$GEN_DEFCONFIG"
+	sed -i '/^BR2_TARGET_ROOTFS_INITRAMFS=/d; /^BR2_TARGET_ROOTFS_SQUASHFS/d; /^BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW=/d' "$GEN_DEFCONFIG"
+	case "$ROOTFS_MODE" in
+	initramfs)
 		echo 'BR2_TARGET_ROOTFS_INITRAMFS=y' >> "$GEN_DEFCONFIG"
 		efx_info "rootfs mode       = initramfs (embedded in the kernel image)"
-	else
-		sed -i '/^BR2_TARGET_ROOTFS_INITRAMFS=/d' "$GEN_DEFCONFIG"
+		;;
+	spinor)
+		# A squashfs written to the second SPI flash from a running system.
+		# The kernel image then carries nothing but the kernel, which is what
+		# keeps it inside its 8 MiB slot as drivers are added.
+		printf '%s\n' 'BR2_TARGET_ROOTFS_SQUASHFS=y' \
+			'BR2_TARGET_ROOTFS_SQUASHFS4_GZIP=y' \
+			'# BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW is not set' >> "$GEN_DEFCONFIG"
+		efx_info "rootfs mode       = spinor (squashfs on mtdblock$ROOTFS_MTDBLOCK, read only)"
+		;;
+	*)
 		efx_info "rootfs mode       = sdcard (genimage sdcard.img)"
-	fi
+		;;
+	esac
 
 	# Devices the generator cannot describe (reserved memory, NPU and FCU
 	# nodes): the dtsi that the generated linux.dts includes has to be copied
@@ -434,10 +451,79 @@ postprocess_defconfig()
 			printf '\taddress %s\n' "$addr"
 			printf '\tnetmask %s\n' "$(efx_netmask "$prefix")"
 		} > "$overlay_dir/etc/network/interfaces"
-		printf '%s\n' "BR2_ROOTFS_OVERLAY=\"$overlay_dir\"" >> "$GEN_DEFCONFIG"
 		efx_info "network           = eth0 $NET_ADDRESS (rootfs overlay)"
 	else
 		efx_info "network           = eth0 left down"
+	fi
+
+	# A read-only root is what Buildroot's skeleton already expects: /var's
+	# cache, log, run and spool are symlinks into tmpfs, and only /var/lib is
+	# in the image. What is missing is somewhere for state that has to last a
+	# reboot, so the flash's data partition is mounted at /data.
+	#
+	# Nothing is formatted here: erasing a partition takes minutes and would
+	# hold up every boot. "efx-format-store" does that once, by hand.
+	if [ "$ROOTFS_MODE" = spinor ]; then
+		mkdir -p "$overlay_dir/data" "$overlay_dir/mnt/fcufw" "$overlay_dir/etc/init.d" \
+			"$overlay_dir/usr/sbin"
+
+		cat > "$overlay_dir/etc/init.d/S00data" <<-'SH'
+			#!/bin/sh
+			# Mount what the board keeps across reboots. The store is formatted
+			# once with efx-format-store; an unformatted partition is left alone.
+			[ "$1" = start ] || exit 0
+
+			for label in data fcu_firmware; do
+				for d in /sys/class/mtd/mtd[0-9]*; do
+					[ -f "$d/name" ] || continue
+					[ "$(cat "$d/name")" = "$label" ] || continue
+					n=$(basename "$d"); n=${n#mtd}
+					case "$label" in
+					data)         mount -t jffs2 "/dev/mtdblock$n" /data 2>/dev/null ;;
+					fcu_firmware) mount -t jffs2 "/dev/mtdblock$n" /mnt/fcufw 2>/dev/null ;;
+					esac
+				done
+			done
+		SH
+		chmod +x "$overlay_dir/etc/init.d/S00data"
+
+		cat > "$overlay_dir/usr/sbin/efx-format-store" <<-'SH'
+			#!/bin/sh
+			# Erase and make a jffs2 of the flash partitions the board writes to.
+			# Minutes per partition, so this is a deliberate step, not a boot one.
+			usage() { echo "usage: $0 data|fcu_firmware|all"; exit 1; }
+
+			format() {
+				for d in /sys/class/mtd/mtd[0-9]*; do
+					[ -f "$d/name" ] || continue
+					[ "$(cat "$d/name")" = "$1" ] || continue
+					n=$(basename "$d"); n=${n#mtd}
+					case "$1" in
+					data)         mnt=/data ;;
+					fcu_firmware) mnt=/mnt/fcufw ;;
+					esac
+					umount "$mnt" 2>/dev/null
+					echo "erasing $1 (/dev/mtd$n), this takes a while"
+					flash_erase -j "/dev/mtd$n" 0 0 || return 1
+					mount -t jffs2 "/dev/mtdblock$n" "$mnt" && echo "$1 -> $mnt"
+					return 0
+				done
+				echo "no partition labelled $1"
+				return 1
+			}
+
+			case "${1:-}" in
+			data|fcu_firmware) format "$1" ;;
+			all)               format data; format fcu_firmware ;;
+			*)                 usage ;;
+			esac
+		SH
+		chmod +x "$overlay_dir/usr/sbin/efx-format-store"
+		efx_info "read only root    = /data and /mnt/fcufw from the flash (format by hand)"
+	fi
+
+	if [ -d "$overlay_dir" ]; then
+		printf '%s\n' "BR2_ROOTFS_OVERLAY=\"$overlay_dir\"" >> "$GEN_DEFCONFIG"
 	fi
 
 	# Rootfs size. init.sh always appends configs/extra_packages_fragment
@@ -467,6 +553,24 @@ postprocess_defconfig()
 	# after the rootfs, which only a post-image hook sees. The stock hook,
 	# post_create_fs.sh, builds sdcard.img with genimage; with the rootfs in the
 	# kernel there is no SD card to make, and it needs mtools, so it goes.
+	if [ "$ROOTFS_MODE" = spinor ]; then
+		# Nothing to assemble: the kernel is plain and the squashfs is written
+		# to the flash from the board. The stock hook only makes an SD image.
+		python3 - "$GEN_DEFCONFIG" <<-'PY'
+			import re, sys
+			path = sys.argv[1]
+			t = open(path).read()
+			m = re.search(r'^BR2_ROOTFS_POST_IMAGE_SCRIPT="(.*)"$', t, re.M)
+			if m:
+			    items = [i for i in m.group(1).split()
+			             if not i.endswith('/post_create_fs.sh')]
+			    line = 'BR2_ROOTFS_POST_IMAGE_SCRIPT="%s"' % ' '.join(items)
+			    t = t[:m.start()] + line + t[m.end():]
+			    open(path, 'w').write(t)
+		PY
+		efx_info "post-image hook  = none (plain kernel, squashfs written from the board)"
+	fi
+
 	if [ "$ROOTFS_MODE" = initramfs ]; then
 		python3 - "$GEN_DEFCONFIG" "$EFX_DIR/scripts/post_image_initramfs.sh" <<-'PY'
 			import re, sys

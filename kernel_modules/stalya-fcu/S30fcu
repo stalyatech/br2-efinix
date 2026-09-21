@@ -23,19 +23,18 @@ mtd_by_label() {
 mount_store() {
 	local mtd num
 
+	mountpoint -q "$FW_MOUNT" 2>/dev/null && return 0
+
 	mtd=$(mtd_by_label "$FW_LABEL") || {
 		echo "no $FW_LABEL partition"
 		return 1
 	}
 	num=${mtd#mtd}
 
-	mkdir -p "$FW_MOUNT"
-	mount -t jffs2 "/dev/mtdblock$num" "$FW_MOUNT" 2>/dev/null && return 0
-
-	# First use, or the filesystem did not survive: start it over.
-	echo "formatting $mtd"
-	flash_erase -j "/dev/$mtd" 0 0 >/dev/null 2>&1 || return 1
-	mount -t jffs2 "/dev/mtdblock$num" "$FW_MOUNT"
+	mkdir -p "$FW_MOUNT" 2>/dev/null
+	# An unformatted store is left as it is: erasing it takes minutes and
+	# "efx-format-store fcu_firmware" is the place for that.
+	mount -t jffs2 "/dev/mtdblock$num" "$FW_MOUNT" 2>/dev/null
 }
 
 case "$1" in
@@ -46,7 +45,7 @@ start)
 		echo "$FW_MOUNT"
 		echo "$FW_MOUNT" > /sys/module/firmware_class/parameters/path
 	else
-		echo "FAIL (the FCU will stay held)"
+		echo "not mounted (run efx-format-store fcu_firmware)"
 	fi
 
 	printf "Loading fcu_rproc: "
