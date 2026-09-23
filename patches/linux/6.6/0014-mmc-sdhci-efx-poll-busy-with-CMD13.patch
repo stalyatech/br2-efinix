@@ -1,0 +1,25 @@
+From: efx <volvox@stalya.com>
+Subject: [PATCH] mmc: sdhci-efx: poll busy with CMD13
+
+The Efinix controller's present state register does not follow DAT0, so
+sdhci_card_busy() reports a card that is always busy. SD cards hardly ever
+wait on it, but an eMMC does after every CMD6, and it never got past the
+first one ("Card stuck being busy"). Drop card_busy so the core polls the
+card's status with CMD13 instead.
+
+---
+--- a/drivers/mmc/host/sdhci-efx.c	2026-09-23 15:21:00.622786592 +0300
++++ b/drivers/mmc/host/sdhci-efx.c	2026-09-23 15:21:00.628661094 +0300
+@@ -286,6 +286,12 @@
+ 	device_property_read_u32(dev, "max-frequency", &pltfm_host->clock);
+ 
+ 	host->mmc_host_ops.get_cd = efx_sdhci_get_cd;
++	/*
++	 * The controller's present state does not follow DAT0, so sdhci's
++	 * card_busy() reads "busy" for good and an eMMC never gets past its
++	 * first CMD6. Without card_busy the core polls busy with CMD13.
++	 */
++	host->mmc_host_ops.card_busy = NULL;
+ 
+ 	ret = mmc_of_parse(host->mmc);
+ 	if (ret)

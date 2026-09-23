@@ -95,10 +95,13 @@
 	 * window, of which the driver touches the MAC at 0x000, the MDIO bus
 	 * at 0x100 and the control block at 0x200).
 	 *
-	 * The RGMII delays are made in the fabric (TX clock shifted 90
-	 * degrees, RX resynchronised per bit), so the PHY must not add its
-	 * own: the mode is plain "rgmii". The PHY reset is a control register
-	 * of the MAC, not a GPIO, and the driver drives it.
+	 * The RGMII timing is made in the fabric, so the PHY must not add its
+	 * own delays: the mode is plain "rgmii". Transmit runs on a clock made
+	 * from the PHY's CLKOUT, with TXC shifted 90 degrees; receive samples
+	 * on a clock a second PLL makes from the PHY's own RXC (it used to come
+	 * from CLKOUT too, which only held when the PHY was the 1000BASE-T
+	 * master). The PHY reset is a control register of the MAC, not a GPIO,
+	 * and the driver drives it.
 	 */
 	tsemac0: ethernet@ea000000 {
 		compatible = "efinix,tsemac-0.01.a";
@@ -151,6 +154,36 @@
  */
 &mmc0 {
 	broken-cd;
+};
+
+/*
+ * The on-board eMMC (U43, H26M41208HPRI, 8 GB) on a second instance of the SD
+ * host controller at 0xEB10_0000, interrupt on PLIC 2 (rtl/ti375_oob_top.v,
+ * u_gSDHC_emmc). The controller has four data lines, so the eMMC runs 4 bit
+ * although the chip has eight. As on mmc0, max-frequency is the controller's
+ * base clock (sd_base_clk, 100 MHz), which the driver divides down. The
+ * aliases keep the SD card at mmcblk0 and put the eMMC at mmcblk1.
+ */
+/ {
+	aliases {
+		mmc0 = &mmc0;
+		mmc1 = &mmc1;
+	};
+
+	mmc1: mmc@eb100000 {
+		compatible = "efx,sdhci";
+		reg = <0xeb100000 0x10000>;
+		interrupt-parent = <&plic>;
+		interrupts = <2>;
+		clocks = <&clock>;
+		clock-frequency = <200000000>;
+		max-frequency = <100000000>;
+		bus-width = <4>;
+		non-removable;
+		no-sd;
+		no-sdio;
+		status = "okay";
+	};
 };
 
 /*
