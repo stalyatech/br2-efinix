@@ -1,0 +1,111 @@
+From: efx <volvox@stalya.com>
+Subject: [PATCH] riscv: rv32: rebuild 64-bit syscall arguments
+
+The syscall wrappers give every argument one register. On RV32 a 64-bit
+argument arrives in two, low word first, so pread64(), pwrite64(),
+fallocate() and the rest lost the high word: a write at 6 GiB landed at
+2 GiB. mke2fs on a 6 GiB eMMC partition wrote its last backup superblock
+over the journal. Add RV32 wrappers that rebuild the value from the
+register pair and put them in the syscall table.
+
+---
+--- a/arch/riscv/kernel/Makefile	2026-09-24 11:25:05.582678912 +0300
++++ b/arch/riscv/kernel/Makefile	2026-09-24 11:25:05.590904954 +0300
+@@ -52,6 +52,7 @@
+ obj-y	+= signal.o
+ obj-y	+= syscall_table.o
+ obj-y	+= sys_riscv.o
++obj-$(CONFIG_32BIT)	+= sys_rv32.o
+ obj-y	+= time.o
+ obj-y	+= traps.o
+ obj-y	+= riscv_ksyms.o
+--- a/arch/riscv/kernel/sys_rv32.c	1970-01-01 02:00:00.000000000 +0200
++++ b/arch/riscv/kernel/sys_rv32.c	2026-09-24 11:25:05.584975301 +0300
+@@ -0,0 +1,66 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * RV32: the system calls that take a 64-bit argument.
++ *
++ * The syscall wrappers in asm/syscall_wrapper.h give every argument one
++ * register. On RV32 a 64-bit argument comes in two, low word first and with
++ * no padding to an even register (glibc's SYSCALL_LL64), so through those
++ * wrappers its high word is lost: a pwrite64() at 6 GiB lands at 2 GiB, and
++ * mke2fs puts the backup superblocks of a large file system on its journal.
++ * These wrappers rebuild the value from the register pair; syscall_table.c
++ * puts them in the table in place of the generic entries.
++ */
++
++#include <linux/syscalls.h>
++#include <asm/ptrace.h>
++
++static inline u64 rv32_u64(unsigned long lo, unsigned long hi)
++{
++	return ((u64)hi << 32) | lo;
++}
++
++asmlinkage long __riscv_sys_rv32_pread64(const struct pt_regs *regs)
++{
++	return ksys_pread64(regs->orig_a0, (char __user *)regs->a1, regs->a2,
++			    rv32_u64(regs->a3, regs->a4));
++}
++
++asmlinkage long __riscv_sys_rv32_pwrite64(const struct pt_regs *regs)
++{
++	return ksys_pwrite64(regs->orig_a0, (const char __user *)regs->a1, regs->a2,
++			     rv32_u64(regs->a3, regs->a4));
++}
++
++asmlinkage long __riscv_sys_rv32_truncate64(const struct pt_regs *regs)
++{
++	return ksys_truncate((const char __user *)regs->orig_a0,
++			     rv32_u64(regs->a1, regs->a2));
++}
++
++asmlinkage long __riscv_sys_rv32_ftruncate64(const struct pt_regs *regs)
++{
++	return ksys_ftruncate(regs->orig_a0, rv32_u64(regs->a1, regs->a2));
++}
++
++asmlinkage long __riscv_sys_rv32_fallocate(const struct pt_regs *regs)
++{
++	return ksys_fallocate(regs->orig_a0, regs->a1, rv32_u64(regs->a2, regs->a3),
++			      rv32_u64(regs->a4, regs->a5));
++}
++
++asmlinkage long __riscv_sys_rv32_sync_file_range(const struct pt_regs *regs)
++{
++	return ksys_sync_file_range(regs->orig_a0, rv32_u64(regs->a1, regs->a2),
++				    rv32_u64(regs->a3, regs->a4), regs->a5);
++}
++
++asmlinkage long __riscv_sys_rv32_fadvise64_64(const struct pt_regs *regs)
++{
++	return ksys_fadvise64_64(regs->orig_a0, rv32_u64(regs->a1, regs->a2),
++				 rv32_u64(regs->a3, regs->a4), regs->a5);
++}
++
++asmlinkage long __riscv_sys_rv32_readahead(const struct pt_regs *regs)
++{
++	return ksys_readahead(regs->orig_a0, rv32_u64(regs->a1, regs->a2), regs->a3);
++}
+--- a/arch/riscv/kernel/syscall_table.c	2026-09-24 11:25:05.583803968 +0300
++++ b/arch/riscv/kernel/syscall_table.c	2026-09-24 11:25:05.590884696 +0300
+@@ -9,6 +9,18 @@
+ #include <asm-generic/syscalls.h>
+ #include <asm/syscall.h>
+ 
++#ifdef CONFIG_32BIT
++/* Calls with a 64-bit argument: see sys_rv32.c */
++#define __riscv_sys_pread64		__riscv_sys_rv32_pread64
++#define __riscv_sys_pwrite64		__riscv_sys_rv32_pwrite64
++#define __riscv_sys_truncate64		__riscv_sys_rv32_truncate64
++#define __riscv_sys_ftruncate64		__riscv_sys_rv32_ftruncate64
++#define __riscv_sys_fallocate		__riscv_sys_rv32_fallocate
++#define __riscv_sys_sync_file_range	__riscv_sys_rv32_sync_file_range
++#define __riscv_sys_fadvise64_64	__riscv_sys_rv32_fadvise64_64
++#define __riscv_sys_readahead		__riscv_sys_rv32_readahead
++#endif
++
+ #undef __SYSCALL
+ #define __SYSCALL(nr, call)	asmlinkage long __riscv_##call(const struct pt_regs *);
+ #include <asm/unistd.h>
