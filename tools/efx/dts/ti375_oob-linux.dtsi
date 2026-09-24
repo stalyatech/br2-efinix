@@ -194,23 +194,16 @@
  *
  * SPI0 is the flash the FPGA configures from and the one the JTAG bridge
  * writes: both work in 3 byte addressing, so the boot image stays under
- * 16 MiB. The rest of that chip holds what Linux writes but the bootloader
- * never reads: the FCU firmware and the board's own data.
- *
- * SPI1 is not wired to the configuration engine at all and carries the root
- * filesystem, all 64 MiB of it.
+ * 16 MiB. Everything the board writes lives on the eMMC now (root file
+ * system, /data, the FCU firmware), so the rest of SPI0 and all of SPI1 are
+ * blank and kept as spare partitions.
  */
 
 &flash {
-	/* The boot image ends at 16 MiB; the rest of the chip is ours. */
+	/* The boot image ends at 16 MiB; the rest of the chip is unused. */
 	partition@1000000 {
-		reg = <0x1000000 0x800000>;	/* 8 MiB */
-		label = "fcu_firmware";
-	};
-
-	partition@1800000 {
-		reg = <0x1800000 0x2800000>;	/* 40 MiB */
-		label = "data";
+		reg = <0x1000000 0x3000000>;	/* 48 MiB */
+		label = "spi0_spare";
 	};
 };
 
@@ -231,10 +224,9 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			/* the whole chip: the squashfs the kernel boots on */
 			partition@0 {
-				reg = <0x0 0x4000000>;	/* 64 MiB */
-				label = "rootfs";
+				reg = <0x0 0x4000000>;	/* 64 MiB, unused */
+				label = "spi1_spare";
 			};
 		};
 	};

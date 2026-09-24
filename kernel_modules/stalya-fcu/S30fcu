@@ -1,9 +1,11 @@
 #!/bin/sh
 # Mount the FCU firmware store and load the remoteproc driver.
 #
-# The firmware lives on the second SPI flash (partition "fcu_firmware"), not
-# in this image: it is the file that changes most often, and the kernel's
-# firmware loader is pointed at the mount so a new build is a file copy.
+# The firmware lives outside this image: it is the file that changes most
+# often, and the kernel's firmware loader is pointed at the mount so a new
+# build is a file copy. With the root on the eMMC, S00data has already bound
+# /data/fcufw to the mount point; with the root on SPI flash, the store is
+# the jffs2 partition "fcu_firmware" and is mounted here.
 # Without a usable store the driver still loads; the FCU then stays held and
 # can be started by hand once the firmware is in place.
 

@@ -187,6 +187,12 @@ generate_derived_fragments()
 			# (ROOTFS_MTDBLOCK); the kernel has no way to ask for one by name.
 			echo "CONFIG_CMDLINE=\"console=ttySL0 earlycon root=/dev/mtdblock${ROOTFS_MTDBLOCK} rootfstype=squashfs ro rootwait\""
 			echo 'CONFIG_CMDLINE_FORCE=y'
+		elif [ "$ROOTFS_MODE" = emmc ]; then
+			# An ext4 on the first partition of the on-board eMMC, mounted
+			# read-write. The mmc1 alias in ti375_oob-linux.dtsi keeps the eMMC
+			# at mmcblk1 whether or not an SD card is in.
+			echo "CONFIG_CMDLINE=\"console=ttySL0 earlycon root=$EMMC_ROOT_DEV rootfstype=ext4 rw rootwait\""
+			echo 'CONFIG_CMDLINE_FORCE=y'
 		fi
 	} > "$DERIVED_LINUX"
 
@@ -378,6 +384,12 @@ postprocess_defconfig()
 			'# BR2_TARGET_GENERIC_REMOUNT_ROOTFS_RW is not set' >> "$GEN_DEFCONFIG"
 		efx_info "rootfs mode       = spinor (squashfs on mtdblock$ROOTFS_MTDBLOCK, read only)"
 		;;
+	emmc)
+		# rootfs.ext4 from the base config, written to the eMMC's first
+		# partition from a running system. The root is writable, so the
+		# skeleton's remount stays at its default.
+		efx_info "rootfs mode       = emmc (ext4 on $EMMC_ROOT_DEV, read-write)"
+		;;
 	*)
 		efx_info "rootfs mode       = sdcard (genimage sdcard.img)"
 		;;
@@ -471,62 +483,102 @@ postprocess_defconfig()
 	#
 	# Nothing is formatted here: erasing a partition takes minutes and would
 	# hold up every boot. "efx-format-store" does that once, by hand.
-	if [ "$ROOTFS_MODE" = spinor ]; then
+	#
+	# With the root on the eMMC the root itself is writable, and the second
+	# eMMC partition takes the place of the flash store: /data, with the FCU
+	# firmware directory on it bound to /mnt/fcufw, where S30fcu points the
+	# firmware loader.
+	if [ "$ROOTFS_MODE" = spinor ] || [ "$ROOTFS_MODE" = emmc ]; then
 		mkdir -p "$overlay_dir/data" "$overlay_dir/mnt/fcufw" "$overlay_dir/etc/init.d" \
 			"$overlay_dir/usr/sbin"
+	fi
 
-		cat > "$overlay_dir/etc/init.d/S00data" <<-'SH'
+	if [ "$ROOTFS_MODE" = emmc ]; then
+		cat > "$overlay_dir/etc/init.d/S00data" <<-SH
 			#!/bin/sh
-			# Mount what the board keeps across reboots. The store is formatted
-			# once with efx-format-store; an unformatted partition is left alone.
-			[ "$1" = start ] || exit 0
+			# Mount the eMMC data partition at /data and the FCU firmware
+			# directory on it at /mnt/fcufw. The partition is formatted once
+			# with efx-format-store; an unformatted one is left alone.
+			[ "\$1" = start ] || exit 0
 
-			for label in data fcu_firmware; do
-				for d in /sys/class/mtd/mtd[0-9]*; do
-					[ -f "$d/name" ] || continue
-					[ "$(cat "$d/name")" = "$label" ] || continue
-					n=$(basename "$d"); n=${n#mtd}
-					case "$label" in
-					data)         mount -t jffs2 "/dev/mtdblock$n" /data 2>/dev/null ;;
-					fcu_firmware) mount -t jffs2 "/dev/mtdblock$n" /mnt/fcufw 2>/dev/null ;;
-					esac
-				done
-			done
+			mount -t ext4 $EMMC_DATA_DEV /data 2>/dev/null || {
+				echo "no data file system on $EMMC_DATA_DEV (efx-format-store data)"
+				exit 0
+			}
+			mkdir -p /data/fcufw
+			mount --bind /data/fcufw /mnt/fcufw
 		SH
 		chmod +x "$overlay_dir/etc/init.d/S00data"
 
-		cat > "$overlay_dir/usr/sbin/efx-format-store" <<-'SH'
+		cat > "$overlay_dir/usr/sbin/efx-format-store" <<-SH
 			#!/bin/sh
-			# Erase and make a jffs2 of the flash partitions the board writes to.
-			# Minutes per partition, so this is a deliberate step, not a boot one.
-			usage() { echo "usage: $0 data|fcu_firmware|all"; exit 1; }
-
-			format() {
-				for d in /sys/class/mtd/mtd[0-9]*; do
-					[ -f "$d/name" ] || continue
-					[ "$(cat "$d/name")" = "$1" ] || continue
-					n=$(basename "$d"); n=${n#mtd}
-					case "$1" in
-					data)         mnt=/data ;;
-					fcu_firmware) mnt=/mnt/fcufw ;;
-					esac
-					umount "$mnt" 2>/dev/null
-					echo "erasing $1 (/dev/mtd$n), this takes a while"
-					flash_erase -j "/dev/mtd$n" 0 0 || return 1
-					mount -t jffs2 "/dev/mtdblock$n" "$mnt" && echo "$1 -> $mnt"
-					return 0
-				done
-				echo "no partition labelled $1"
-				return 1
-			}
-
-			case "${1:-}" in
-			data|fcu_firmware) format "$1" ;;
-			all)               format data; format fcu_firmware ;;
-			*)                 usage ;;
-			esac
+			# Make an empty ext4 on the eMMC data partition. Everything on it,
+			# the FCU firmware included, is lost.
+			[ "\${1:-}" = data ] || { echo "usage: \$0 data"; exit 1; }
+			umount /mnt/fcufw 2>/dev/null
+			umount /data 2>/dev/null
+			mkfs.ext4 -F -L data $EMMC_DATA_DEV || exit 1
+			/etc/init.d/S00data start
+			mountpoint -q /data && echo "data -> /data, fcufw -> /mnt/fcufw"
 		SH
 		chmod +x "$overlay_dir/usr/sbin/efx-format-store"
+	fi
+
+	if [ "$ROOTFS_MODE" = spinor ] || [ "$ROOTFS_MODE" = emmc ]; then
+		if [ "$ROOTFS_MODE" = spinor ]; then
+			cat > "$overlay_dir/etc/init.d/S00data" <<-'SH'
+				#!/bin/sh
+				# Mount what the board keeps across reboots. The store is formatted
+				# once with efx-format-store; an unformatted partition is left alone.
+				[ "$1" = start ] || exit 0
+
+				for label in data fcu_firmware; do
+					for d in /sys/class/mtd/mtd[0-9]*; do
+						[ -f "$d/name" ] || continue
+						[ "$(cat "$d/name")" = "$label" ] || continue
+						n=$(basename "$d"); n=${n#mtd}
+						case "$label" in
+						data)         mount -t jffs2 "/dev/mtdblock$n" /data 2>/dev/null ;;
+						fcu_firmware) mount -t jffs2 "/dev/mtdblock$n" /mnt/fcufw 2>/dev/null ;;
+						esac
+					done
+				done
+			SH
+			chmod +x "$overlay_dir/etc/init.d/S00data"
+
+			cat > "$overlay_dir/usr/sbin/efx-format-store" <<-'SH'
+				#!/bin/sh
+				# Erase and make a jffs2 of the flash partitions the board writes to.
+				# Minutes per partition, so this is a deliberate step, not a boot one.
+				usage() { echo "usage: $0 data|fcu_firmware|all"; exit 1; }
+
+				format() {
+					for d in /sys/class/mtd/mtd[0-9]*; do
+						[ -f "$d/name" ] || continue
+						[ "$(cat "$d/name")" = "$1" ] || continue
+						n=$(basename "$d"); n=${n#mtd}
+						case "$1" in
+						data)         mnt=/data ;;
+						fcu_firmware) mnt=/mnt/fcufw ;;
+						esac
+						umount "$mnt" 2>/dev/null
+						echo "erasing $1 (/dev/mtd$n), this takes a while"
+						flash_erase -j "/dev/mtd$n" 0 0 || return 1
+						mount -t jffs2 "/dev/mtdblock$n" "$mnt" && echo "$1 -> $mnt"
+						return 0
+					done
+					echo "no partition labelled $1"
+					return 1
+				}
+
+				case "${1:-}" in
+				data|fcu_firmware) format "$1" ;;
+				all)               format data; format fcu_firmware ;;
+				*)                 usage ;;
+				esac
+			SH
+			chmod +x "$overlay_dir/usr/sbin/efx-format-store"
+		fi
 
 		if [ "$DDS_AGENT" = y ]; then
 			cat > "$overlay_dir/etc/init.d/S45agent" <<-SH
@@ -576,7 +628,11 @@ postprocess_defconfig()
 			SH
 			chmod +x "$overlay_dir/etc/init.d/S45agent"
 		fi
-		efx_info "read only root    = /data and /mnt/fcufw from the flash (format by hand)"
+		if [ "$ROOTFS_MODE" = spinor ]; then
+			efx_info "read only root    = /data and /mnt/fcufw from the flash (format by hand)"
+		else
+			efx_info "data store        = $EMMC_DATA_DEV at /data, /data/fcufw at /mnt/fcufw"
+		fi
 	fi
 
 	if [ -d "$overlay_dir" ]; then
@@ -605,14 +661,21 @@ postprocess_defconfig()
 		'BR2_PACKAGE_MTD_FLASHCP=y' \
 		'BR2_PACKAGE_MTD_LSMTD=y' >> "$GEN_DEFCONFIG"
 
+	# On the eMMC the data partition is an ext4 the board formats and checks
+	# itself (the minimal package set drops e2fsprogs).
+	if [ "$ROOTFS_MODE" = emmc ]; then
+		sed -i '/^BR2_PACKAGE_E2FSPROGS=/d' "$GEN_DEFCONFIG"
+		echo 'BR2_PACKAGE_E2FSPROGS=y' >> "$GEN_DEFCONFIG"
+	fi
+
 
 	# The initramfs Image has to be cut from the vmlinux Buildroot relinks
 	# after the rootfs, which only a post-image hook sees. The stock hook,
 	# post_create_fs.sh, builds sdcard.img with genimage; with the rootfs in the
 	# kernel there is no SD card to make, and it needs mtools, so it goes.
-	if [ "$ROOTFS_MODE" = spinor ]; then
-		# Nothing to assemble: the kernel is plain and the squashfs is written
-		# to the flash from the board. The stock hook only makes an SD image.
+	if [ "$ROOTFS_MODE" = spinor ] || [ "$ROOTFS_MODE" = emmc ]; then
+		# Nothing to assemble: the kernel is plain and the root image is
+		# written from the board. The stock hook only makes an SD image.
 		python3 - "$GEN_DEFCONFIG" <<-'PY'
 			import re, sys
 			path = sys.argv[1]
@@ -625,7 +688,7 @@ postprocess_defconfig()
 			    t = t[:m.start()] + line + t[m.end():]
 			    open(path, 'w').write(t)
 		PY
-		efx_info "post-image hook  = none (plain kernel, squashfs written from the board)"
+		efx_info "post-image hook  = none (plain kernel, root image written from the board)"
 	fi
 
 	if [ "$ROOTFS_MODE" = initramfs ]; then
